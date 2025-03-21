@@ -13,17 +13,17 @@ import {
 const items = [
   {
     title: "Stress Test",
-    url: "/stress-test",
+    url: "/testing/stress",
     icon: Home,
   },
   {
     title: "Load Test",
-    url: "/load-test",
+    url: "/testing/load",
     icon: Inbox,
   },
   {
     title: "API Test",
-    url: "/api-test",
+    url: "/testing/api",
     icon: Calendar,
   }
 ]
