@@ -5,19 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-
-interface TestMetrics {
-  requests_completed: number;
-  avg_response_time: number;
-  errors: number;
-}
-
-interface TestUpdate {
-  test_id: string;
-  status: string;
-  progress: number;
-  metrics?: TestMetrics;
-}
+import { TestUpdate, TestType, TestStatus, TestMetrics } from "@/types/index";
 
 interface TestState {
   progress: number;
@@ -32,7 +20,7 @@ const defaultConfigs = {
   "concurrency": 10
 }`,
   stress: `{
-  "sitemap": "http://localhost:3001/sitemap.xml",
+  "sitemap": "http://localhost:3001l",
   "duration": 60,
   "concurrency": 20
 }`,
@@ -58,22 +46,22 @@ export default function Home() {
     ws.onmessage = (event) => {
       try {
         const update: TestUpdate = JSON.parse(event.data);
-        const activity = `${update.status === 'completed' ? '✅' : '🔄'} ${update.test_id}: ${update.progress.toFixed(0)}% - ${update.status}`;
+        const activity = `${update.status === TestStatus.Completed ? '✅' : '🔄'} ${update.test_type}: ${update.progress.toFixed(0)}% - ${update.status}`;
         setActivities(prev => [activity, ...prev].slice(0, 4));
         
-        if (update.test_id.includes('stress')) {
+        if (update.test_type === TestType.Stress) {
           setStressTest({
             progress: update.progress,
             metrics: update.metrics,
             status: update.status,
           });
-        } else if (update.test_id.includes('load')) {
+        } else if (update.test_type === TestType.Load) {
           setLoadTest({
             progress: update.progress,
             metrics: update.metrics,
             status: update.status,
           });
-        } else if (update.test_id.includes('api')) {
+        } else if (update.test_type === TestType.Api) {
           setApiTest({
             progress: update.progress,
             metrics: update.metrics,

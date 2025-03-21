@@ -1,4 +1,4 @@
-import { TestUpdate } from '../types';
+import { TestUpdate } from '@/types/index';
 
 type MessageHandler = (update: TestUpdate) => void;
 
