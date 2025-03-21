@@ -54,7 +54,7 @@
     "**/*.{json,css,scss}": [
       "prettier --write"
     ],
-    "**/*.{js,ts,svelte}": [
+    "**/*.{js,ts,tsx}": [
       "prettier --write .",
       "eslint --fix ."
     ]
