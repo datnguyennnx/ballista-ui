@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import {Space_Mono } from "next/font/google";
-import { ThemeProvider } from "@/components/theme-provider"
+import { Space_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
-
-
 
 const spaceMono = Space_Mono({
   weight: ["400", "700"],
@@ -13,7 +11,8 @@ const spaceMono = Space_Mono({
 
 export const metadata: Metadata = {
   title: "Ballista UI",
-  description: "Ballista: A precision-engineered Rust API service that launches targeted volleys of concurrent requests to stress-test web applications, delivering detailed performance metrics with the accuracy of its ancient namesake weapon.",
+  description:
+    "Ballista: A precision-engineered Rust API service that launches targeted volleys of concurrent requests to stress-test web applications, delivering detailed performance metrics with the accuracy of its ancient namesake weapon.",
 };
 
 export default function RootLayout({
@@ -23,17 +22,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${spaceMono.variable} antialiased`}
-      >
+      <body className={`${spaceMono.variable} antialiased`}>
         <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

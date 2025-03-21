@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { TestUpdate, TestType, TestStatus, TestMetrics } from "@/types/index";
 
 interface TestState {
@@ -20,21 +20,21 @@ const defaultConfig = `{
 }`;
 
 export default function LoadTestPage() {
-  const [loadTest, setLoadTest] = useState<TestState>({ progress: 0, status: 'idle' });
+  const [loadTest, setLoadTest] = useState<TestState>({ progress: 0, status: "idle" });
   const [activities, setActivities] = useState<string[]>([]);
   const [loadConfig, setLoadConfig] = useState(defaultConfig);
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:3001/ws');
-    
+    const ws = new WebSocket("ws://localhost:3001/ws");
+
     ws.onmessage = (event) => {
       try {
         const update: TestUpdate = JSON.parse(event.data);
-        
+
         if (update.test_type === TestType.Load) {
-          const activity = `${update.status === TestStatus.Completed ? '✅' : '🔄'} Load Test: ${update.progress.toFixed(0)}% - ${update.status}`;
-          setActivities(prev => [activity, ...prev].slice(0, 4));
-          
+          const activity = `${update.status === TestStatus.Completed ? "✅" : "🔄"} Load Test: ${update.progress.toFixed(0)}% - ${update.status}`;
+          setActivities((prev) => [activity, ...prev].slice(0, 4));
+
           setLoadTest({
             progress: update.progress,
             metrics: update.metrics,
@@ -42,7 +42,7 @@ export default function LoadTestPage() {
           });
         }
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+        console.error("Failed to parse WebSocket message:", error);
       }
     };
 
@@ -53,15 +53,17 @@ export default function LoadTestPage() {
     try {
       const configData = JSON.parse(config);
       const response = await fetch(`/api/load-test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configData)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(configData),
       });
       const data = await response.json();
-      console.log('Load test started:', data);
+      console.log("Load test started:", data);
     } catch (error) {
-      console.error('Failed to start load test:', error);
-      setActivities(prev => ['❌ Failed to start load test: Invalid configuration', ...prev].slice(0, 4));
+      console.error("Failed to start load test:", error);
+      setActivities((prev) =>
+        ["❌ Failed to start load test: Invalid configuration", ...prev].slice(0, 4),
+      );
     }
   };
 
@@ -81,7 +83,7 @@ export default function LoadTestPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Load Testing</h1>
       </div>
-      
+
       <div className="grid grid-cols-1 gap-4">
         <Card>
           <CardHeader>
@@ -96,12 +98,12 @@ export default function LoadTestPage() {
               className="font-mono text-sm"
               rows={6}
             />
-            <Button 
+            <Button
               onClick={() => startTest(loadConfig)}
-              disabled={loadTest.status === 'running'}
+              disabled={loadTest.status === "running"}
               className="w-full"
             >
-              {loadTest.status === 'running' ? 'Running...' : 'Start Load Test'}
+              {loadTest.status === "running" ? "Running..." : "Start Load Test"}
             </Button>
             {renderMetrics(loadTest.metrics)}
           </CardContent>
@@ -115,12 +117,12 @@ export default function LoadTestPage() {
             <div className="space-y-4">
               {activities.map((activity, i) => (
                 <div key={i} className="flex items-center space-x-4">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
                     📊
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">{activity}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm leading-none font-medium">{activity}</p>
+                    <p className="text-muted-foreground text-sm">
                       {new Date().toLocaleTimeString()}
                     </p>
                   </div>
@@ -132,4 +134,4 @@ export default function LoadTestPage() {
       </div>
     </div>
   );
-} 
+}

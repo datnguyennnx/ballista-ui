@@ -1,4 +1,4 @@
-import { Calendar, Home, Inbox} from "lucide-react"
+import { Calendar, Home, Inbox } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -8,7 +8,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 const items = [
   {
@@ -25,8 +25,8 @@ const items = [
     title: "API Test",
     url: "/testing/api",
     icon: Calendar,
-  }
-]
+  },
+];
 
 export function AppSidebar() {
   return (
@@ -51,5 +51,5 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
-  )
-} 
+  );
+}

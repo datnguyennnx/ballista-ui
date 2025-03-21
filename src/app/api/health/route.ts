@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
@@ -6,10 +6,7 @@ export async function GET() {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Health check error:', error);
-    return NextResponse.json(
-      { error: 'Failed to check health status' },
-      { status: 500 }
-    );
+    console.error("Health check error:", error);
+    return NextResponse.json({ error: "Failed to check health status" }, { status: 500 });
   }
-} 
+}

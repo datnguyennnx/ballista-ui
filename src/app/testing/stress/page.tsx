@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { TestUpdate, TestType, TestStatus, TestMetrics } from "@/types/index";
 
 interface TestState {
@@ -20,21 +20,21 @@ const defaultConfig = `{
 }`;
 
 export default function StressTestPage() {
-  const [stressTest, setStressTest] = useState<TestState>({ progress: 0, status: 'idle' });
+  const [stressTest, setStressTest] = useState<TestState>({ progress: 0, status: "idle" });
   const [activities, setActivities] = useState<string[]>([]);
   const [stressConfig, setStressConfig] = useState(defaultConfig);
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:3001/ws');
-    
+    const ws = new WebSocket("ws://localhost:3001/ws");
+
     ws.onmessage = (event) => {
       try {
         const update: TestUpdate = JSON.parse(event.data);
-        
+
         if (update.test_type === TestType.Stress) {
-          const activity = `${update.status === TestStatus.Completed ? '✅' : '🔄'} Stress Test: ${update.progress.toFixed(0)}% - ${update.status}`;
-          setActivities(prev => [activity, ...prev].slice(0, 4));
-          
+          const activity = `${update.status === TestStatus.Completed ? "✅" : "🔄"} Stress Test: ${update.progress.toFixed(0)}% - ${update.status}`;
+          setActivities((prev) => [activity, ...prev].slice(0, 4));
+
           setStressTest({
             progress: update.progress,
             metrics: update.metrics,
@@ -42,7 +42,7 @@ export default function StressTestPage() {
           });
         }
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+        console.error("Failed to parse WebSocket message:", error);
       }
     };
 
@@ -53,15 +53,17 @@ export default function StressTestPage() {
     try {
       const configData = JSON.parse(config);
       const response = await fetch(`/api/stress-test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configData)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(configData),
       });
       const data = await response.json();
-      console.log('Stress test started:', data);
+      console.log("Stress test started:", data);
     } catch (error) {
-      console.error('Failed to start stress test:', error);
-      setActivities(prev => ['❌ Failed to start stress test: Invalid configuration', ...prev].slice(0, 4));
+      console.error("Failed to start stress test:", error);
+      setActivities((prev) =>
+        ["❌ Failed to start stress test: Invalid configuration", ...prev].slice(0, 4),
+      );
     }
   };
 
@@ -81,7 +83,7 @@ export default function StressTestPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Stress Testing</h1>
       </div>
-      
+
       <div className="grid grid-cols-1 gap-4">
         <Card>
           <CardHeader>
@@ -96,12 +98,12 @@ export default function StressTestPage() {
               className="font-mono text-sm"
               rows={6}
             />
-            <Button 
+            <Button
               onClick={() => startTest(stressConfig)}
-              disabled={stressTest.status === 'running'}
+              disabled={stressTest.status === "running"}
               className="w-full"
             >
-              {stressTest.status === 'running' ? 'Running...' : 'Start Stress Test'}
+              {stressTest.status === "running" ? "Running..." : "Start Stress Test"}
             </Button>
             {renderMetrics(stressTest.metrics)}
           </CardContent>
@@ -115,12 +117,12 @@ export default function StressTestPage() {
             <div className="space-y-4">
               {activities.map((activity, i) => (
                 <div key={i} className="flex items-center space-x-4">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
                     📊
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">{activity}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm leading-none font-medium">{activity}</p>
+                    <p className="text-muted-foreground text-sm">
                       {new Date().toLocaleTimeString()}
                     </p>
                   </div>
@@ -132,4 +134,4 @@ export default function StressTestPage() {
       </div>
     </div>
   );
-} 
+}

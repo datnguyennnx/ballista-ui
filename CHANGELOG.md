@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-03-21
 
 ### Added
+
 - Initial release of Ballista UI
 - Created API configuration with endpoint definitions:
   - Load test endpoint
@@ -33,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added test status tracking and display
 
 ### Improved
+
 - Enhanced type safety across the application
 - Standardized API response handling
 - Consistent error handling patterns
@@ -40,8 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean and maintainable code structure
 
 ### Technical Features
+
 - TypeScript support with strict type checking
 - Real-time WebSocket communication
 - Proper error boundary implementation
 - Type-safe API integration
-- Modular component architecture 
+- Modular component architecture

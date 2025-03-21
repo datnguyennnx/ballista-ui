@@ -1,0 +1,20 @@
+# Ignore all SVG and ICO files
+**/*.svg
+**/*.ico
+
+# Other common directories
+build/
+coverage/
+__snapshots__/
+node_modules/
+bun.lockb
+package.json
+
+# next.js
+/.next/
+/out/
+
+
+
+src/components/ui/
+src/components/magicui/
