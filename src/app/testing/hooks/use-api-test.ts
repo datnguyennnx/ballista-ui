@@ -1,52 +1,33 @@
 import { useState, useEffect } from "react";
+import { TestUpdate, TestType, TestStatus } from "@/types/index";
 import { LoadConfigType, TestState } from "../types/test-types";
 import { TimeSeriesPoint } from "../types/time-series";
 import { generateFakeTestData, createTestMetrics } from "../shared/mock-data";
+
+const defaultConfig: LoadConfigType = {
+  url: "https://api.example.com/users",
+  method: "GET",
+  duration: 60,
+  rampUp: 5,
+  concurrentUsers: 10,
+  thinkTime: 100,
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: "Bearer {token}",
+  },
+  followRedirects: true,
+};
 
 /**
  * Custom hook for API test page state management
  */
 export function useApiTest() {
-  // Test configuration state
-  const [apiConfig, setApiConfig] = useState<LoadConfigType>({
-    url: "https://api.example.com/users",
-    method: "GET",
-    duration: 60,
-    rampUp: 5,
-    concurrentUsers: 10,
-    thinkTime: 100,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer {token}",
-    },
-    followRedirects: true,
-  });
-
-  // Test execution state
-  const [apiTest, setApiTest] = useState<TestState>({
-    progress: 0,
-    status: "idle",
-    metrics: {
-      requests_completed: 0,
-      total_requests: 1000,
-      avg_response_time: 0,
-      min_response_time: 0,
-      max_response_time: 0,
-      median_response_time: 0,
-      p95_response_time: 0,
-      status_codes: {},
-      errors: 0,
-    },
-  });
-
-  // Activity log messages
+  const [apiTest, setApiTest] = useState<TestState>({ progress: 0, status: "idle" });
   const [activities, setActivities] = useState<string[]>([]);
-
-  // Time series data for charts
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesPoint[]>([]);
-
-  // Tracking fake test state
+  const [lastTimestamp, setLastTimestamp] = useState<number>(0);
   const [isFakeTestRunning, setIsFakeTestRunning] = useState(false);
+  const [apiConfig, setApiConfig] = useState<LoadConfigType>(defaultConfig);
   const [fakeTestInterval, setFakeTestInterval] = useState<NodeJS.Timeout | null>(null);
 
   // Clean up interval on unmount
@@ -58,104 +39,162 @@ export function useApiTest() {
     };
   }, [fakeTestInterval]);
 
-  /**
-   * Start an actual API test
-   */
+  useEffect(() => {
+    const ws = new WebSocket("ws://localhost:3001/ws");
+
+    ws.onmessage = (event) => {
+      try {
+        const update: TestUpdate = JSON.parse(event.data);
+
+        if (update.test_type === TestType.Api) {
+          const activity = `${update.status === TestStatus.Completed ? "✅" : "🔄"} API Test: ${update.progress.toFixed(0)}% - ${update.status}`;
+          setActivities((prev) => [activity, ...prev].slice(0, 4));
+
+          setApiTest({
+            progress: update.progress,
+            metrics: update.metrics,
+            status: update.status,
+          });
+
+          // Add time series data point if we have metrics
+          if (update.metrics && update.timestamp > lastTimestamp) {
+            setLastTimestamp(update.timestamp);
+
+            // Calculate requests per second
+            const requestsPerSecond =
+              (update.metrics.requests_completed /
+                (update.timestamp - (timeSeriesData[0]?.timestamp || update.timestamp))) *
+              1000;
+
+            // Calculate error rate
+            const errorRate =
+              (update.metrics.errors / update.metrics.requests_completed) * 100 || 0;
+
+            const newPoint: TimeSeriesPoint = {
+              timestamp: update.timestamp,
+              responseTime: update.metrics.avg_response_time,
+              requestsPerSecond,
+              errorRate,
+            };
+
+            setTimeSeriesData((prev) => [...prev, newPoint].slice(-20)); // Keep last 20 points
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse WebSocket message:", error);
+      }
+    };
+
+    return () => ws.close();
+  }, [lastTimestamp, timeSeriesData]);
+
   const startTest = async () => {
-    // Reset test state
-    setApiTest({
-      progress: 0,
-      status: "starting",
-      metrics: apiTest.metrics,
-    });
+    try {
+      // Reset test state
+      setApiTest({
+        progress: 0,
+        status: "starting",
+        metrics: apiTest.metrics,
+      });
 
-    setActivities(["Preparing API test..."]);
+      setActivities(["Preparing API test..."]);
 
-    // Real API call would happen here
+      // Convert from LoadConfigType to the API's expected format
+      const apiConfigData = {
+        url: apiConfig.url,
+        requests: apiConfig.concurrentUsers * 10, // Example conversion
+        concurrency: apiConfig.concurrentUsers,
+        method: apiConfig.method,
+        duration: apiConfig.duration,
+        headers: apiConfig.headers,
+      };
+
+      const response = await fetch(`/api/api-test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(apiConfigData),
+      });
+      const data = await response.json();
+      console.log("API test started:", data);
+
+      // Reset time series data when starting a new test
+      setTimeSeriesData([]);
+      setLastTimestamp(0);
+    } catch (error) {
+      console.error("Failed to start API test:", error);
+      setActivities((prev) =>
+        ["❌ Failed to start API test: Invalid configuration", ...prev].slice(0, 4),
+      );
+    }
   };
 
-  /**
-   * Run a simulated API test with fake data
-   */
+  // Function to run a simulated test with fake data
   const runFakeTest = () => {
     if (isFakeTestRunning) return;
 
-    // Reset test state
-    setTimeSeriesData([]);
-    setActivities(["Starting API test against " + apiConfig.url, "Loading test suite..."]);
-
-    setApiTest({
-      progress: 0,
-      status: "running",
-      metrics: {
-        requests_completed: 0,
-        total_requests: 1000,
-        avg_response_time: 0,
-        min_response_time: 0,
-        max_response_time: 0,
-        median_response_time: 0,
-        p95_response_time: 0,
-        status_codes: { 200: 0 },
-        errors: 0,
-      },
-    });
-
     setIsFakeTestRunning(true);
+    setTimeSeriesData([]);
+    setApiTest({ progress: 0, status: "running" });
 
-    // Generate all data points up front
-    const allDataPoints = generateFakeTestData("api");
+    // Add initial activity
+    setActivities(["🔄 API Test: 0% - Started"]);
 
-    // Track progress
-    let currentStep = 0;
-    const totalSteps = 100;
+    // Generate all data points upfront
+    const fakeData = generateFakeTestData("api");
+    const totalPoints = fakeData.length;
+    let currentIndex = 0;
 
-    // Progress update interval
+    // Update at regular intervals to simulate real-time data
     const interval = setInterval(() => {
-      // Update progress
-      currentStep++;
-      const progress = currentStep;
-
-      // Get current data point based on progress
-      const dataIndex = Math.min(
-        Math.floor((currentStep / totalSteps) * allDataPoints.length),
-        allDataPoints.length - 1,
-      );
-      const currentDataPoint = allDataPoints[dataIndex];
-
-      // Add to time series
-      setTimeSeriesData((prev) => [...prev, currentDataPoint]);
-
-      // Update test metrics based on progress
-      const metrics = createTestMetrics(progress, currentDataPoint, "api");
-
-      // Add activity logs at specific milestones
-      if (progress === 15) {
-        setActivities((prev) => [...prev, "Testing endpoint with " + apiConfig.method + " method"]);
-      } else if (progress === 30) {
-        setActivities((prev) => [...prev, "Verifying response schemas"]);
-      } else if (progress === 50) {
-        setActivities((prev) => [...prev, "Validating status codes"]);
-      } else if (progress === 70) {
-        setActivities((prev) => [...prev, "Checking authentication flows"]);
-      } else if (progress === 85) {
-        setActivities((prev) => [...prev, "Validating rate limiting behavior"]);
-      }
-
-      // Update test state
-      setApiTest({
-        progress,
-        status: progress < 100 ? "running" : "completed",
-        metrics,
-      });
-
-      // End test when complete
-      if (progress >= 100) {
+      if (currentIndex >= totalPoints) {
         clearInterval(interval);
         setFakeTestInterval(null);
+        setApiTest({
+          progress: 100,
+          status: "completed",
+          metrics: {
+            requests_completed: 1000,
+            total_requests: 1000,
+            avg_response_time: fakeData[totalPoints - 1].responseTime,
+            min_response_time: fakeData[totalPoints - 1].responseTime * 0.5,
+            max_response_time: fakeData[totalPoints - 1].responseTime * 2,
+            median_response_time: fakeData[totalPoints - 1].responseTime * 0.8,
+            p95_response_time: fakeData[totalPoints - 1].responseTime * 1.5,
+            status_codes: { 200: 980, 404: 10, 500: 10 },
+            errors: Math.floor(fakeData[totalPoints - 1].errorRate * 10),
+          },
+        });
+
+        // Add completion activity
+        setActivities((prev) => ["✅ API Test: 100% - Completed", ...prev].slice(0, 4));
+
         setIsFakeTestRunning(false);
-        setActivities((prev) => [...prev, "API test completed successfully"]);
+        return;
       }
-    }, 300);
+
+      // Add the next data point
+      const dataPoint = fakeData[currentIndex];
+      setTimeSeriesData((prev) => [...prev, dataPoint]);
+
+      // Update progress based on current index
+      const progress = Math.min(99, Math.floor((currentIndex / totalPoints) * 100));
+
+      // Update metrics based on current state
+      const currentMetrics = createTestMetrics(progress, dataPoint, "api");
+
+      setApiTest({
+        progress,
+        status: "running",
+        metrics: currentMetrics,
+      });
+
+      // Add progress update activity every 25%
+      if (progress % 25 === 0 && progress > 0) {
+        setActivities((prev) => [`🔄 API Test: ${progress}% - Running`, ...prev].slice(0, 4));
+      }
+
+      currentIndex++;
+    }, 1000);
 
     setFakeTestInterval(interval);
   };
