@@ -36,6 +36,11 @@ export function useStressTest() {
     };
   }, [fakeTestInterval]);
 
+  // Clear activities when component mounts
+  useEffect(() => {
+    setActivities([]);
+  }, []);
+
   useEffect(() => {
     const ws = new WebSocket("ws://localhost:3001/ws");
 
@@ -94,6 +99,7 @@ export function useStressTest() {
         metrics: stressTest.metrics,
       });
 
+      // Clear previous activities and add initial message
       setActivities(["Preparing stress test..."]);
 
       // Convert from LoadConfigType to the API's expected format
@@ -119,9 +125,7 @@ export function useStressTest() {
       setLastTimestamp(0);
     } catch (error) {
       console.error("Failed to start stress test:", error);
-      setActivities((prev) =>
-        ["❌ Failed to start stress test: Invalid configuration", ...prev].slice(0, 4),
-      );
+      setActivities(["❌ Failed to start stress test: Invalid configuration"]);
     }
   };
 
@@ -133,7 +137,7 @@ export function useStressTest() {
     setTimeSeriesData([]);
     setStressTest({ progress: 0, status: "running" });
 
-    // Add initial activity
+    // Clear previous activities and add initial activity
     setActivities(["🔄 Stress Test: 0% - Started"]);
 
     // Generate all data points upfront

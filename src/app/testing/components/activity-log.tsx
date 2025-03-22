@@ -202,7 +202,6 @@ export function ActivityLog({ activities }: ActivityLogProps) {
                         {statusInfo ? (
                           <div className="flex flex-col">
                             <div className="flex items-baseline">
-                              <span className="text-sm font-medium">{statusInfo.prefix}</span>
                               <span className="mr-1 ml-1 text-sm font-semibold">
                                 {statusInfo.status}
                               </span>

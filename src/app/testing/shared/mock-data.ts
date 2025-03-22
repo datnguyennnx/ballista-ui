@@ -140,34 +140,3 @@ export function createTestMetrics(
     errors: Math.floor(dataPoint.errorRate * 10),
   };
 }
-
-/**
- * Returns default activity log messages for different test types
- */
-export function getDefaultActivities(testType: "load" | "stress" | "api"): string[] {
-  if (testType === "stress") {
-    return [
-      "Started stress test with concurrent users",
-      "Ramping up load...",
-      "System under heavy load",
-      "Monitoring response times",
-      "Test completed",
-    ];
-  } else if (testType === "api") {
-    return [
-      "Started API test",
-      "Testing endpoints",
-      "Validating responses",
-      "Checking schema compliance",
-      "Test completed",
-    ];
-  } else {
-    return [
-      "Started load test",
-      "Generating traffic",
-      "Collecting metrics",
-      "Analyzing performance",
-      "Test completed",
-    ];
-  }
-}

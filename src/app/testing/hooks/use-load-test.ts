@@ -34,6 +34,11 @@ export function useLoadTest() {
     };
   }, [fakeTestInterval]);
 
+  // Clear activities when component mounts
+  useEffect(() => {
+    setActivities([]);
+  }, []);
+
   useEffect(() => {
     const ws = new WebSocket("ws://localhost:3001/ws");
 
@@ -92,6 +97,7 @@ export function useLoadTest() {
         metrics: loadTest.metrics,
       });
 
+      // Clear previous activities and add initial message
       setActivities(["Preparing load test..."]);
 
       // Convert from LoadConfigType to the API's expected format
@@ -117,9 +123,7 @@ export function useLoadTest() {
       setLastTimestamp(0);
     } catch (error) {
       console.error("Failed to start load test:", error);
-      setActivities((prev) =>
-        ["❌ Failed to start load test: Invalid configuration", ...prev].slice(0, 4),
-      );
+      setActivities(["❌ Failed to start load test: Invalid configuration"]);
     }
   };
 
@@ -131,7 +135,7 @@ export function useLoadTest() {
     setTimeSeriesData([]);
     setLoadTest({ progress: 0, status: "running" });
 
-    // Add initial activity
+    // Clear previous activities and add initial activity
     setActivities(["🔄 Load Test: 0% - Started"]);
 
     // Generate all data points upfront

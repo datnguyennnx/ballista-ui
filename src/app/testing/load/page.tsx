@@ -9,12 +9,11 @@ import { MetricsDashboard } from "../components/metrics-dashboard";
 import { TestConfig } from "../components/test-config";
 import { ActivityLog } from "../components/activity-log";
 import { mapTimeSeriesData } from "../utils/data-mappers";
-import { getDefaultActivities } from "../shared/mock-data";
 
 export default function LoadTestPage() {
   const {
     loadTest,
-    activities: testActivities,
+    activities,
     timeSeriesData,
     isFakeTestRunning,
     loadConfig,
@@ -29,9 +28,6 @@ export default function LoadTestPage() {
 
   // Convert time series data to the format expected by MetricsDashboard
   const formattedTimeSeriesData = mapTimeSeriesData(timeSeriesData);
-
-  // Use either actual activities from the test or default ones
-  const activities = testActivities.length ? testActivities : getDefaultActivities("load");
 
   return (
     <PageLayout
