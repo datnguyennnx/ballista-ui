@@ -121,4 +121,69 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  :root {
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+/* Custom badges for metrics charts */
+.badge-good {
+  background-color: var(--chart-3);
+  color: var(--primary-foreground);
+}
+
+.badge-warning {
+  background-color: var(--chart-4);
+  color: white;
+}
+
+.badge-critical {
+  background-color: var(--chart-5);
+  color: white;
+}
+
+.badge-stale {
+  background-color: transparent;
+  color: var(--chart-4);
+  border: 1px dashed var(--chart-4);
+}
+
+.badge-disconnected {
+  background-color: transparent;
+  color: var(--muted-foreground);
+  border: 1px dashed var(--border);
+}
+
+.badge-live {
+  background-color: transparent;
+  color: var(--chart-3);
+  border: 1px solid var(--chart-3);
+}
+
+@keyframes highlight {
+  0% {
+    background-color: var(--accent);
+    opacity: 0.3;
+  }
+  100% {
+    background-color: transparent;
+    opacity: 0;
+  }
+}
+
+.animate-highlight-bg {
+  animation: highlight 2s ease-out forwards;
 }

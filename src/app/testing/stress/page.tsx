@@ -1,137 +1,87 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { TestUpdate, TestType, TestStatus, TestMetrics } from "@/types/index";
-
-interface TestState {
-  progress: number;
-  metrics?: TestMetrics;
-  status: string;
-}
-
-const defaultConfig = `{
-  "sitemap": "http://localhost:3001l",
-  "duration": 60,
-  "concurrency": 20
-}`;
+import { BarChart3 } from "lucide-react";
+import { useStressTest } from "../hooks/use-stress-test";
+import { PageLayout } from "../components/page-layout";
+import { MetricCards } from "../components/metric-cards";
+import { TestStatus } from "../components/test-status";
+import { MetricsDashboard } from "../components/metrics-dashboard";
+import { TestConfig } from "../components/test-config";
+import { ActivityLog } from "../components/activity-log";
+import { mapTimeSeriesData } from "../utils/data-mappers";
 
 export default function StressTestPage() {
-  const [stressTest, setStressTest] = useState<TestState>({ progress: 0, status: "idle" });
-  const [activities, setActivities] = useState<string[]>([]);
-  const [stressConfig, setStressConfig] = useState(defaultConfig);
+  const {
+    stressTest,
+    activities,
+    timeSeriesData,
+    isFakeTestRunning,
+    stressConfig,
+    setStressConfig,
+    startTest,
+    runFakeTest,
+  } = useStressTest();
 
-  useEffect(() => {
-    const ws = new WebSocket("ws://localhost:3001/ws");
+  // Extract data from stressTest
+  const { progress, status, metrics } = stressTest;
+  const isRunning = status === "running" || isFakeTestRunning;
 
-    ws.onmessage = (event) => {
-      try {
-        const update: TestUpdate = JSON.parse(event.data);
-
-        if (update.test_type === TestType.Stress) {
-          const activity = `${update.status === TestStatus.Completed ? "✅" : "🔄"} Stress Test: ${update.progress.toFixed(0)}% - ${update.status}`;
-          setActivities((prev) => [activity, ...prev].slice(0, 4));
-
-          setStressTest({
-            progress: update.progress,
-            metrics: update.metrics,
-            status: update.status,
-          });
-        }
-      } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
-      }
-    };
-
-    return () => ws.close();
-  }, []);
-
-  const startTest = async (config: string) => {
-    try {
-      const configData = JSON.parse(config);
-      const response = await fetch(`/api/stress-test`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(configData),
-      });
-      const data = await response.json();
-      console.log("Stress test started:", data);
-    } catch (error) {
-      console.error("Failed to start stress test:", error);
-      setActivities((prev) =>
-        ["❌ Failed to start stress test: Invalid configuration", ...prev].slice(0, 4),
-      );
-    }
-  };
-
-  const renderMetrics = (metrics?: TestMetrics) => {
-    if (!metrics) return null;
-    return (
-      <div className="mt-4 space-y-2 text-sm">
-        <div>Requests: {metrics.requests_completed}</div>
-        <div>Avg Response: {metrics.avg_response_time.toFixed(2)}ms</div>
-        <div>Errors: {metrics.errors}</div>
-      </div>
-    );
-  };
+  // Convert time series data to the format expected by MetricsDashboard
+  const formattedTimeSeriesData = mapTimeSeriesData(timeSeriesData);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Stress Testing</h1>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Stress Test</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Progress value={stressTest.progress} className="mb-4" />
-            <Textarea
-              value={stressConfig}
-              onChange={(e) => setStressConfig(e.target.value)}
-              placeholder="Enter test configuration..."
-              className="font-mono text-sm"
-              rows={6}
+    <PageLayout
+      title="Stress Testing"
+      description="Run stress tests to find the breaking point of your API"
+      actionArea={<TestStatus isRunning={isRunning} progress={progress} onRunTest={runFakeTest} />}
+      summaryArea={metrics && <MetricCards metrics={metrics} isRunning={isRunning} />}
+      mainContent={
+        <MetricsDashboard timeSeriesData={formattedTimeSeriesData} showConcurrentUsers={true} />
+      }
+      sidebarContent={
+        <>
+          <TestConfig
+            loadConfig={stressConfig}
+            setLoadConfig={setStressConfig}
+            startTest={startTest}
+            runFakeTest={runFakeTest}
+            loadTest={stressTest}
+            isFakeTestRunning={isFakeTestRunning}
+            testType="stress"
+          />
+          <ActivityLog activities={activities} />
+        </>
+      }
+      mobileTabs={[
+        {
+          label: "Charts",
+          value: "charts",
+          icon: <BarChart3 className="h-4 w-4" />,
+          content: (
+            <MetricsDashboard timeSeriesData={formattedTimeSeriesData} showConcurrentUsers={true} />
+          ),
+        },
+        {
+          label: "Configuration",
+          value: "config",
+          content: (
+            <TestConfig
+              loadConfig={stressConfig}
+              setLoadConfig={setStressConfig}
+              startTest={startTest}
+              runFakeTest={runFakeTest}
+              loadTest={stressTest}
+              isFakeTestRunning={isFakeTestRunning}
+              testType="stress"
             />
-            <Button
-              onClick={() => startTest(stressConfig)}
-              disabled={stressTest.status === "running"}
-              className="w-full"
-            >
-              {stressTest.status === "running" ? "Running..." : "Start Stress Test"}
-            </Button>
-            {renderMetrics(stressTest.metrics)}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activities</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {activities.map((activity, i) => (
-                <div key={i} className="flex items-center space-x-4">
-                  <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-full">
-                    📊
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm leading-none font-medium">{activity}</p>
-                    <p className="text-muted-foreground text-sm">
-                      {new Date().toLocaleTimeString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          ),
+        },
+        {
+          label: "Activities",
+          value: "activities",
+          content: <ActivityLog activities={activities} />,
+        },
+      ]}
+    />
   );
 }

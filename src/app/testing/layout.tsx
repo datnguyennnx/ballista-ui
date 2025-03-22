@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+
+export const metadata: Metadata = {
+  title: "Testing Dashboard",
+  description: "Testing management dashboard",
+};
 
 export default function RootLayout({
   children,
