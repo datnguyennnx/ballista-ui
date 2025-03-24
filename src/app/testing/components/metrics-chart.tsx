@@ -5,7 +5,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   TooltipProps,
   ReferenceLine,
   ReferenceArea,
@@ -22,7 +21,7 @@ import {
   WifiOffIcon,
   ClockIcon,
 } from "lucide-react";
-import { ChartConfig, ChartContainer } from "@/components/ui/chart";
+import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Badge } from "@/components/ui/badge";
 
 interface MetricsChartProps {
@@ -286,8 +285,8 @@ export function MetricsChart({
 
       return (
         <Card className="border-border/30 bg-card/95 min-w-[180px] px-3 py-2 shadow-md backdrop-blur-sm">
-          <p className="text-card-foreground mb-2 text-xs font-medium">
-            <ClockIcon className="mr-1 mb-0.5 inline h-3 w-3" />
+          <p className="text-card-foreground text-xs font-medium">
+            <ClockIcon className="mr-1 inline h-3 w-3" />
             {formattedTime}
           </p>
           <p className="text-card-foreground flex items-center justify-between gap-2 text-xs">
@@ -297,7 +296,7 @@ export function MetricsChart({
             </span>
           </p>
           <div
-            className={`mt-1 flex items-center justify-between rounded-sm px-1.5 py-0.5 text-xs ${statusBgClass}`}
+            className={`flex items-center justify-between rounded-sm px-1.5 py-0.5 text-xs ${statusBgClass}`}
             style={{ color: statusColor }}
           >
             <span className="font-medium">Status:</span>
@@ -361,7 +360,7 @@ export function MetricsChart({
 
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
           <AreaChart data={displayData} accessibilityLayer>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <CartesianGrid vertical={false} />
             <XAxis
               dataKey="timestamp"
               tickFormatter={formatTimestamp}
@@ -443,15 +442,17 @@ export function MetricsChart({
                 isFront={true}
               />
             )}
-            <Tooltip content={<CustomTooltip />} />
+
+            <ChartTooltip cursor={false} content={<CustomTooltip />} />
+
             <Area
               type="monotone"
               dataKey={dataKey as string}
               fill="var(--color-desktop)"
               fillOpacity={0.3}
               stroke="var(--color-desktop)"
-              animationDuration={600}
-              isAnimationActive={true}
+              animationDuration={0}
+              isAnimationActive={false}
               connectNulls={true}
             />
           </AreaChart>
