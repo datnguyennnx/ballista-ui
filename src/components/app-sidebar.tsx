@@ -8,7 +8,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
+import { SettingsDialog } from "@/components/settings-dialog";
 
 const items = [
   {
@@ -56,6 +58,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <SettingsDialog />
+      </SidebarFooter>
     </Sidebar>
   );
 }
