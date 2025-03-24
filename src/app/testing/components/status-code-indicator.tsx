@@ -18,8 +18,8 @@ export function StatusCodeIndicator({ statusCodes, totalRequests }: StatusCodeIn
           const colorClass = code.startsWith("2")
             ? "bg-chart-3 text-chart-3"
             : code.startsWith("5")
-              ? "bg-chart-5 text-chart-5"
-              : "bg-chart-4 text-chart-4";
+              ? "bg-chart-4 text-chart-4"
+              : "bg-chart-5 text-chart-5";
 
           return (
             <div key={code} className="flex flex-col space-y-1">

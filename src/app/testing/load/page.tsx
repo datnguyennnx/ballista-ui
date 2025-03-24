@@ -35,7 +35,11 @@ export default function LoadTestPage() {
       description="Run performance tests against your API endpoints"
       actionArea={<TestStatus isRunning={isRunning} progress={progress} onRunTest={runFakeTest} />}
       summaryArea={metrics && <MetricCards metrics={metrics} isRunning={isRunning} />}
-      mainContent={<MetricsDashboard timeSeriesData={formattedTimeSeriesData} />}
+      mainContent={
+        <div>
+          <MetricsDashboard timeSeriesData={formattedTimeSeriesData} />
+        </div>
+      }
       sidebarContent={
         <>
           <TestConfig
@@ -55,7 +59,11 @@ export default function LoadTestPage() {
           label: "Charts",
           value: "charts",
           icon: <BarChart3 className="h-4 w-4" />,
-          content: <MetricsDashboard timeSeriesData={formattedTimeSeriesData} />,
+          content: (
+            <div>
+              <MetricsDashboard timeSeriesData={formattedTimeSeriesData} />
+            </div>
+          ),
         },
         {
           label: "Configuration",

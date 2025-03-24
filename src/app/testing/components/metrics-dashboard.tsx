@@ -36,17 +36,20 @@ export function MetricsDashboard({
       return [];
     }
 
-    return timeSeriesData.responseTime.map((point) => {
-      const timestamp = point.timestamp;
+    // Sort data points by timestamp to ensure proper ordering
+    const timestamps = timeSeriesData.responseTime.map((p) => p.timestamp).sort();
 
+    return timestamps.map((timestamp) => {
       // Find matching points from other metrics
+      const responseTime =
+        timeSeriesData.responseTime.find((p) => p.timestamp === timestamp)?.value || 0;
       const throughput =
         timeSeriesData.throughput.find((p) => p.timestamp === timestamp)?.value || 0;
       const errorRate = timeSeriesData.errorRate.find((p) => p.timestamp === timestamp)?.value || 0;
 
       return {
         timestamp,
-        responseTime: point.value,
+        responseTime,
         requestsPerSecond: throughput,
         errorRate,
       };
@@ -57,7 +60,6 @@ export function MetricsDashboard({
   const enhancedData = useMemo(() => {
     return chartData.map((point) => ({
       ...point,
-      // Adding concurrentUsers as a dynamic property
       concurrentUsers: Math.round(point.requestsPerSecond * (Math.random() * 2 + 3)),
     }));
   }, [chartData]);
@@ -65,7 +67,7 @@ export function MetricsDashboard({
   // Render overview tab content
   const renderOverviewContent = () => (
     <div className="flex flex-col gap-4">
-      <Card className="h-fit w-full border">
+      <Card className="h-full w-full border">
         <CardHeader className="bg-card/50">
           <CardTitle className="text-base">Response Time (ms)</CardTitle>
         </CardHeader>
@@ -74,15 +76,13 @@ export function MetricsDashboard({
             data={chartData}
             dataKey="responseTime"
             label="Response Time (ms)"
-            colorIndex={1}
-            height={300}
             formatValue={(value) => `${value.toFixed(1)} ms`}
-            thresholds={{ warning: 200, critical: 500 }}
+            // thresholds={{ warning: 200, critical: 500 }}
           />
         </CardContent>
       </Card>
 
-      <Card className="h-fit w-full border">
+      <Card className="h-full w-full border">
         <CardHeader className="bg-card/50">
           <CardTitle className="text-base">Throughput (rps)</CardTitle>
         </CardHeader>
@@ -91,15 +91,13 @@ export function MetricsDashboard({
             data={chartData}
             dataKey="requestsPerSecond"
             label="Throughput (rps)"
-            colorIndex={2}
-            height={300}
             formatValue={(value) => `${value.toFixed(1)} rps`}
           />
         </CardContent>
       </Card>
 
       {showConcurrentUsers && (
-        <Card className="w-fuln h-fit border">
+        <Card className="h-full w-full border">
           <CardHeader className="bg-card/50">
             <CardTitle className="text-base">Concurrent Users</CardTitle>
           </CardHeader>
@@ -108,15 +106,13 @@ export function MetricsDashboard({
               data={enhancedData}
               dataKey="concurrentUsers"
               label="Users"
-              colorIndex={3}
-              height={300}
               formatValue={(value) => `${Math.round(value)}`}
             />
           </CardContent>
         </Card>
       )}
 
-      <Card className="w-fuln h-fit border">
+      <Card className="h-full w-full border">
         <CardHeader className="bg-card/50">
           <CardTitle className="text-base">Error Rate (%)</CardTitle>
         </CardHeader>
@@ -125,10 +121,8 @@ export function MetricsDashboard({
             data={chartData}
             dataKey="errorRate"
             label="Error Rate (%)"
-            colorIndex={5}
-            height={300}
             formatValue={(value) => `${value.toFixed(2)}%`}
-            thresholds={{ warning: 1, critical: 5 }}
+            // thresholds={{ warning: 1, critical: 5 }}
           />
         </CardContent>
       </Card>
@@ -146,10 +140,8 @@ export function MetricsDashboard({
           data={chartData}
           dataKey="responseTime"
           label="Response Time (ms)"
-          colorIndex={1}
-          height={300}
           formatValue={(value) => `${value.toFixed(1)} ms`}
-          thresholds={{ warning: 200, critical: 500 }}
+          // thresholds={{ warning: 200, critical: 500 }}
         />
       </CardContent>
     </Card>
@@ -166,8 +158,6 @@ export function MetricsDashboard({
           data={chartData}
           dataKey="requestsPerSecond"
           label="Throughput (rps)"
-          colorIndex={2}
-          height={300}
           formatValue={(value) => `${value.toFixed(1)} rps`}
         />
       </CardContent>
@@ -185,8 +175,6 @@ export function MetricsDashboard({
           data={chartData}
           dataKey="errorRate"
           label="Error Rate (%)"
-          colorIndex={5}
-          height={300}
           formatValue={(value) => `${value.toFixed(2)}%`}
           thresholds={{ warning: 1, critical: 5 }}
         />

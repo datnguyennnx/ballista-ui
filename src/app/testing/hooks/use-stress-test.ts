@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
-import { TestUpdate, TestType, TestStatus } from "@/types/index";
-import { LoadConfigType, TestState } from "../types/test-types";
-import { TimeSeriesPoint } from "../types/time-series";
-import { generateFakeTestData, createTestMetrics } from "../shared/mock-data";
+import { useState } from "react";
+import { TestType } from "@/types/index";
+import { LoadConfigType } from "../types/test-types";
+import { useWebSocket } from "./use-websocket";
+import { useFakeTest } from "./use-fake-test";
+import { wsClient } from "@/lib/websocket";
 
 const defaultConfig: LoadConfigType = {
-  url: "https://api.example.com/stress-test",
+  target_url: "https://example.com",
   method: "GET",
   duration: 180,
   rampUp: 30,
@@ -19,92 +20,53 @@ const defaultConfig: LoadConfigType = {
  * Custom hook for stress test page state management
  */
 export function useStressTest() {
-  const [stressTest, setStressTest] = useState<TestState>({ progress: 0, status: "idle" });
-  const [activities, setActivities] = useState<string[]>([]);
-  const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesPoint[]>([]);
-  const [lastTimestamp, setLastTimestamp] = useState<number>(0);
-  const [isFakeTestRunning, setIsFakeTestRunning] = useState(false);
   const [stressConfig, setStressConfig] = useState<LoadConfigType>(defaultConfig);
-  const [fakeTestInterval, setFakeTestInterval] = useState<NodeJS.Timeout | null>(null);
 
-  // Clean up interval on unmount
-  useEffect(() => {
-    return () => {
-      if (fakeTestInterval) {
-        clearInterval(fakeTestInterval);
-      }
-    };
-  }, [fakeTestInterval]);
+  const {
+    isConnected,
+    activities,
+    testState: stressTest,
+    timeSeriesData,
+    connectWebSocket,
+    setTestState,
+    setActivities,
+    setTimeSeriesData,
+  } = useWebSocket(TestType.Stress);
 
-  // Clear activities when component mounts
-  useEffect(() => {
-    setActivities([]);
-  }, []);
-
-  useEffect(() => {
-    const ws = new WebSocket("ws://localhost:3001/ws");
-
-    ws.onmessage = (event) => {
-      try {
-        const update: TestUpdate = JSON.parse(event.data);
-
-        if (update.test_type === TestType.Stress) {
-          const activity = `${update.status === TestStatus.Completed ? "✅" : "🔄"} Stress Test: ${update.progress.toFixed(0)}% - ${update.status}`;
-          setActivities((prev) => [activity, ...prev].slice(0, 4));
-
-          setStressTest({
-            progress: update.progress,
-            metrics: update.metrics,
-            status: update.status,
-          });
-
-          // Add time series data point if we have metrics
-          if (update.metrics && update.timestamp > lastTimestamp) {
-            setLastTimestamp(update.timestamp);
-
-            // Calculate requests per second
-            const requestsPerSecond =
-              (update.metrics.requests_completed /
-                (update.timestamp - (timeSeriesData[0]?.timestamp || update.timestamp))) *
-              1000;
-
-            // Calculate error rate
-            const errorRate =
-              (update.metrics.errors / update.metrics.requests_completed) * 100 || 0;
-
-            const newPoint: TimeSeriesPoint = {
-              timestamp: update.timestamp,
-              responseTime: update.metrics.avg_response_time,
-              requestsPerSecond,
-              errorRate,
-            };
-
-            setTimeSeriesData((prev) => [...prev, newPoint].slice(-20)); // Keep last 20 points
-          }
-        }
-      } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
-      }
-    };
-
-    return () => ws.close();
-  }, [lastTimestamp, timeSeriesData]);
+  const { isFakeTestRunning, runFakeTest } = useFakeTest("stress");
 
   const startTest = async () => {
     try {
+      // Connect to WebSocket before starting test
+      await connectWebSocket();
+
       // Reset test state
-      setStressTest({
+      setTestState({
         progress: 0,
         status: "starting",
         metrics: stressTest.metrics,
       });
 
+      // Reset time series data when starting a new test
+      // Initialize with a starting point at [0, 0] to ensure chart begins at origin
+      const startPoint = {
+        timestamp: Date.now(),
+        requestsPerSecond: 0,
+        responseTime: 0,
+        errorRate: 0,
+        concurrentUsers: 0,
+      };
+      setTimeSeriesData([startPoint]);
+
       // Clear previous activities and add initial message
       setActivities(["Preparing stress test..."]);
 
+      // Request latest time series data
+      wsClient.requestTimeSeriesHistory();
+
       // Convert from LoadConfigType to the API's expected format
       const apiConfigData = {
-        url: stressConfig.url,
+        url: stressConfig.target_url,
         requests: stressConfig.concurrentUsers * 10, // Example conversion
         concurrency: stressConfig.concurrentUsers,
         method: stressConfig.method,
@@ -120,84 +82,19 @@ export function useStressTest() {
       const data = await response.json();
       console.log("Stress test started:", data);
 
-      // Reset time series data when starting a new test
-      setTimeSeriesData([]);
-      setLastTimestamp(0);
+      // Add HTTP status and response info to activities
+      setActivities((prev) =>
+        [`Stress test started (HTTP ${response.status} ${response.statusText})`, ...prev].slice(
+          0,
+          4,
+        ),
+      );
     } catch (error) {
       console.error("Failed to start stress test:", error);
-      setActivities(["❌ Failed to start stress test: Invalid configuration"]);
+      setActivities([
+        `Failed to start stress test: ${error instanceof Error ? error.message : "Invalid configuration"}`,
+      ]);
     }
-  };
-
-  // Function to run a simulated test with fake data
-  const runFakeTest = () => {
-    if (isFakeTestRunning) return;
-
-    setIsFakeTestRunning(true);
-    setTimeSeriesData([]);
-    setStressTest({ progress: 0, status: "running" });
-
-    // Clear previous activities and add initial activity
-    setActivities(["🔄 Stress Test: 0% - Started"]);
-
-    // Generate all data points upfront
-    const fakeData = generateFakeTestData("stress");
-    const totalPoints = fakeData.length;
-    let currentIndex = 0;
-
-    // Update at regular intervals to simulate real-time data
-    const interval = setInterval(() => {
-      if (currentIndex >= totalPoints) {
-        clearInterval(interval);
-        setFakeTestInterval(null);
-        setStressTest({
-          progress: 100,
-          status: "completed",
-          metrics: {
-            requests_completed: 10000,
-            total_requests: 10000,
-            avg_response_time: fakeData[totalPoints - 1].responseTime,
-            min_response_time: fakeData[totalPoints - 1].responseTime * 0.5,
-            max_response_time: fakeData[totalPoints - 1].responseTime * 2,
-            median_response_time: fakeData[totalPoints - 1].responseTime * 0.8,
-            p95_response_time: fakeData[totalPoints - 1].responseTime * 1.5,
-            status_codes: { 200: 9800, 404: 100, 500: 100 },
-            errors: Math.floor(fakeData[totalPoints - 1].errorRate * 10),
-          },
-        });
-
-        // Add completion activity
-        setActivities((prev) => ["✅ Stress Test: 100% - Completed", ...prev].slice(0, 4));
-
-        setIsFakeTestRunning(false);
-        return;
-      }
-
-      // Add the next data point
-      const dataPoint = fakeData[currentIndex];
-      setTimeSeriesData((prev) => [...prev, dataPoint]);
-
-      // Update progress based on current index
-      const progress = Math.min(99, Math.floor((currentIndex / totalPoints) * 100));
-
-      // Update metrics based on current state
-      const currentMetrics = createTestMetrics(progress, dataPoint, "stress");
-
-      setStressTest({
-        progress,
-        status: "running",
-        metrics: currentMetrics,
-      });
-
-      // Add progress update activity every 25%
-      if (progress % 25 === 0 && progress > 0) {
-        setActivities((prev) => [`🔄 Stress Test: ${progress}% - Running`, ...prev].slice(0, 4));
-      }
-
-      currentIndex++;
-    }, 1000);
-
-    setFakeTestInterval(interval);
   };
 
   return {
@@ -206,8 +103,10 @@ export function useStressTest() {
     timeSeriesData,
     isFakeTestRunning,
     stressConfig,
+    isConnected,
     setStressConfig,
     startTest,
-    runFakeTest,
+    runFakeTest: () => runFakeTest(setTestState, setTimeSeriesData, setActivities, stressConfig),
+    connectWebSocket,
   };
 }

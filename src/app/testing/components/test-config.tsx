@@ -16,6 +16,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { TestState, LoadConfigType } from "../types/test-types";
 import { Textarea } from "@/components/ui/textarea";
+import { wsClient } from "@/lib/websocket";
 
 interface TestConfigProps {
   loadConfig: LoadConfigType;
@@ -39,6 +40,7 @@ export function TestConfig({
   const isRunning = loadTest.status === "running" || isFakeTestRunning;
   const [isStarting, setIsStarting] = useState(false);
   const [headersString, setHeadersString] = useState<string>("{}");
+  const [connecting, setConnecting] = useState(false);
 
   const updateConfig = (key: keyof LoadConfigType, value: unknown) => {
     setLoadConfig({
@@ -64,7 +66,38 @@ export function TestConfig({
     setIsStarting(true);
 
     try {
-      // First call the mock function for UI testing
+      // Connect to WebSocket first to ensure streaming connection is established
+      try {
+        setConnecting(true);
+        // Only connect if not already connected
+        if (!wsClient.isConnectedState()) {
+          console.log("Establishing WebSocket connection before starting test...");
+          try {
+            await wsClient.connect();
+
+            // Wait longer for the WebSocket to fully connect and stabilize
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Request time series history to initialize charts
+            wsClient.requestTimeSeriesHistory();
+
+            console.log("WebSocket connection established successfully");
+          } catch (err) {
+            console.warn("WebSocket connection failed, continuing with test anyway:", err);
+            // We'll continue with the test even though WebSocket failed
+          }
+        } else {
+          console.log("Using existing WebSocket connection");
+          // Refresh time series data with existing connection
+          wsClient.requestTimeSeriesHistory();
+        }
+      } catch (error) {
+        console.warn("WebSocket connection attempt failed, continuing anyway:", error);
+      } finally {
+        setConnecting(false);
+      }
+
+      // Call the mock function for UI testing
       startTest();
 
       // Then call the actual API endpoint based on test type
@@ -75,7 +108,7 @@ export function TestConfig({
 
       if (testType === "load") {
         config = {
-          target_url: loadConfig.url,
+          target_url: loadConfig.target_url,
           num_requests: 1000, // This could be made configurable
           concurrency: loadConfig.concurrentUsers,
           headers: loadConfig.headers,
@@ -84,7 +117,7 @@ export function TestConfig({
         };
       } else if (testType === "stress") {
         config = {
-          target_url: loadConfig.url,
+          target_url: loadConfig.target_url,
           duration_secs: loadConfig.duration,
           concurrency: loadConfig.concurrentUsers,
           headers: loadConfig.headers,
@@ -93,7 +126,7 @@ export function TestConfig({
         };
       } else if (testType === "api") {
         config = {
-          target_url: loadConfig.url,
+          target_url: loadConfig.target_url,
           test_suite_path: "/tests/default.json", // This could be made configurable
           headers: loadConfig.headers,
           method: loadConfig.method,
@@ -144,9 +177,9 @@ export function TestConfig({
           <Label htmlFor="url">Endpoint URL</Label>
           <Input
             id="url"
-            value={loadConfig.url}
-            onChange={(e) => updateConfig("url", e.target.value)}
-            placeholder="https://api.example.com/endpoint"
+            value={loadConfig.target_url}
+            onChange={(e) => updateConfig("target_url", e.target.value)}
+            placeholder="https://example.com/endpoint"
             disabled={isRunning}
           />
         </div>
@@ -257,8 +290,8 @@ export function TestConfig({
               id="think-time"
               value={[loadConfig.thinkTime]}
               min={0}
-              max={5000}
-              step={100}
+              max={2000}
+              step={50}
               onValueChange={(value: number[]) => updateConfig("thinkTime", value[0])}
               disabled={isRunning}
             />
@@ -267,35 +300,43 @@ export function TestConfig({
 
         {showTestSuite && (
           <div className="space-y-2">
-            <Label htmlFor="testsuite">Test Suite Path</Label>
-            <Input
-              id="testsuite"
-              defaultValue="/tests/default.json"
-              placeholder="/tests/default.json"
+            <Label htmlFor="testSuite">Test Suite</Label>
+            <Select
               disabled={isRunning}
-              readOnly
-            />
+              value="default"
+              onValueChange={(value) => console.log(value)}
+            >
+              <SelectTrigger id="testSuite">
+                <SelectValue placeholder="Select test suite" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default API Tests</SelectItem>
+                <SelectItem value="advanced">Advanced API Tests</SelectItem>
+                <SelectItem value="custom">Custom Tests</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         )}
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-col space-y-2">
           <Button
             onClick={handleStartTest}
-            className="flex-1"
-            disabled={isRunning || isStarting || !loadConfig.url}
+            disabled={isRunning || isStarting}
+            className="w-full"
+            variant="default"
           >
-            {isRunning || isStarting ? (
+            {isStarting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isStarting ? "Starting..." : "Running..."}
+                <span>{connecting ? "Connecting WebSocket" : "Starting Test"}</span>
               </>
             ) : (
-              "Start Test"
+              <span>Start Real Test (WebSocket)</span>
             )}
           </Button>
 
-          <Button variant="outline" onClick={runFakeTest} className="flex-1" disabled={isRunning}>
-            Demo Data
+          <Button onClick={runFakeTest} disabled={isRunning} className="w-full" variant="outline">
+            Run Simulated Test (Offline)
           </Button>
         </div>
       </CardContent>

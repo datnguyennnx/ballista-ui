@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { ConnectionStatus } from "@/app/testing/components/connection-status";
 
 export const metadata: Metadata = {
   title: "Testing Dashboard",
@@ -17,8 +18,11 @@ export default function RootLayout({
       <div className="flex h-screen w-full">
         <AppSidebar />
         <main className="flex-1 overflow-auto">
-          <div className="flex h-16 items-center gap-2 border-b px-4">
-            <SidebarTrigger />
+          <div className="flex h-16 items-center justify-between gap-2 border-b px-4">
+            <div className="flex items-center">
+              <SidebarTrigger />
+            </div>
+            <ConnectionStatus />
           </div>
           <div className="w-full p-8">{children}</div>
         </main>

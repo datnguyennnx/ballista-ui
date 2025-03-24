@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, AlertCircle, Info, User, Clock, ArrowUpRight } from "lucide-react";
-import { useEffect, useState, useRef, useMemo } from "react";
+import { CheckCircle, AlertCircle, Info, User, Clock } from "lucide-react";
+import { useEffect, useRef, useMemo } from "react";
 
 interface Activity {
   id: string;
@@ -17,7 +17,6 @@ interface ActivityLogProps {
 }
 
 export function ActivityLog({ activities }: ActivityLogProps) {
-  const [highlightedActivities, setHighlightedActivities] = useState<Record<string, boolean>>({});
   const processedIds = useRef<Set<string>>(new Set());
 
   // Check if we're using the new Activity format or legacy string format
@@ -50,7 +49,12 @@ export function ActivityLog({ activities }: ActivityLogProps) {
     } else if (
       activity.includes("❌") ||
       activity.includes("error") ||
-      activity.includes("Error")
+      activity.includes("Error") ||
+      activity.includes("failed") ||
+      activity.includes("Failed") ||
+      activity.includes("lost") ||
+      activity.includes("interrupted") ||
+      activity.includes("Interrupted")
     ) {
       type = "error";
     } else if (
@@ -77,31 +81,15 @@ export function ActivityLog({ activities }: ActivityLogProps) {
       : (activities as Activity[]);
   }, [activities, isLegacyFormat]);
 
-  // Track new activities and highlight them
+  // Just track new activities for processing IDs, without animation
   useEffect(() => {
     if (formattedActivities.length === 0) return;
 
-    const newHighlights: Record<string, boolean> = {};
-    let hasNewActivities = false;
-
     formattedActivities.forEach((activity) => {
       if (!processedIds.current.has(activity.id)) {
-        newHighlights[activity.id] = true;
         processedIds.current.add(activity.id);
-        hasNewActivities = true;
       }
     });
-
-    if (hasNewActivities) {
-      setHighlightedActivities(newHighlights);
-
-      // Clear highlight after animation plays
-      const timer = setTimeout(() => {
-        setHighlightedActivities({});
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
   }, [formattedActivities]);
 
   // Get icon and color based on activity type
@@ -127,6 +115,7 @@ export function ActivityLog({ activities }: ActivityLogProps) {
   const extractStatus = (
     message: string,
   ): { prefix: string; status: string; suffix: string } | null => {
+    // Match "Load Test: X% - Status" pattern
     const statusMatch = message.match(/(Load Test:)\s*(\d+%)\s*-\s*(.*)/i);
     if (statusMatch) {
       return {
@@ -135,6 +124,17 @@ export function ActivityLog({ activities }: ActivityLogProps) {
         suffix: statusMatch[3],
       };
     }
+
+    // Match HTTP status pattern: (HTTP XXX Status)
+    const httpMatch = message.match(/(.*)\(HTTP\s+(\d+)\s+(.*)\)(.*)/);
+    if (httpMatch) {
+      return {
+        prefix: httpMatch[1].trim(),
+        status: `HTTP ${httpMatch[2]}`,
+        suffix: httpMatch[3] + (httpMatch[4] || ""),
+      };
+    }
+
     return null;
   };
 
@@ -190,11 +190,7 @@ export function ActivityLog({ activities }: ActivityLogProps) {
                 return (
                   <div
                     key={activity.id}
-                    className={`-ml-1 flex flex-col rounded-md py-2 pl-2 transition-colors ${
-                      highlightedActivities[activity.id]
-                        ? "animate-highlight-bg bg-accent/10"
-                        : "bg-card/30"
-                    }`}
+                    className="bg-card/30 -ml-1 flex flex-col rounded-md py-2 pl-2"
                   >
                     <div className="flex items-center">
                       <div className="mr-2 flex-shrink-0">{getActivityIcon(activity)}</div>
@@ -213,9 +209,6 @@ export function ActivityLog({ activities }: ActivityLogProps) {
                         )}
                       </div>
                       <div className="text-muted-foreground flex flex-shrink-0 items-center text-xs">
-                        {highlightedActivities[activity.id] && (
-                          <ArrowUpRight className="text-chart-3 mr-1 h-3 w-3 animate-pulse" />
-                        )}
                         <span title={"timestamp"}>{formatRelativeTime(activity.timestamp)}</span>
                       </div>
                     </div>

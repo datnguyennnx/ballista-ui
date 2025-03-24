@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const rawConfig = await request.json();
     const config: LoadTestConfig = {
-      target_url: "https://example.com",
+      target_url: rawConfig.target_url,
       num_requests: Number(rawConfig.num_requests) || 1000,
       concurrency: Number(rawConfig.concurrency) || 10,
     };

@@ -13,7 +13,7 @@ export interface TestState {
  * Load configuration interface
  */
 export interface LoadConfigType {
-  url: string;
+  target_url: string;
   method: string;
   duration: number;
   rampUp: number;

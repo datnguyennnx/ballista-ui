@@ -5,7 +5,7 @@ import { TimeSeriesPoint } from "../types/time-series";
 import { generateFakeTestData, createTestMetrics } from "../shared/mock-data";
 
 const defaultConfig: LoadConfigType = {
-  url: "https://api.example.com/users",
+  target_url: "https://example.com",
   method: "GET",
   duration: 60,
   rampUp: 5,
@@ -107,7 +107,7 @@ export function useApiTest() {
 
       // Convert from LoadConfigType to the API's expected format
       const apiConfigData = {
-        url: apiConfig.url,
+        url: apiConfig.target_url,
         requests: apiConfig.concurrentUsers * 10, // Example conversion
         concurrency: apiConfig.concurrentUsers,
         method: apiConfig.method,

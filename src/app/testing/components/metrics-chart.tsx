@@ -1,16 +1,17 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
+  TooltipProps,
   ReferenceLine,
   ReferenceArea,
   ReferenceDot,
 } from "recharts";
+import { format } from "date-fns";
 import { TimeSeriesPoint } from "../types/time-series";
 import { Card } from "@/components/ui/card";
 import {
@@ -21,6 +22,7 @@ import {
   WifiOffIcon,
   ClockIcon,
 } from "lucide-react";
+import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Badge } from "@/components/ui/badge";
 
 interface MetricsChartProps {
@@ -38,12 +40,18 @@ interface MetricsChartProps {
   };
 }
 
+const chartConfig = {
+  desktop: {
+    label: "Desktop",
+    color: "var(--chart-1)",
+  },
+} satisfies ChartConfig;
+
 export function MetricsChart({
   data,
   dataKey,
   label,
   colorIndex = 1, // Default to first chart color
-  height = 300,
   formatValue = (value) => `${value}`,
   refreshInterval = 1000,
   showMiniStats = true,
@@ -51,41 +59,25 @@ export function MetricsChart({
 }: MetricsChartProps) {
   const [chartData, setChartData] = useState<TimeSeriesPoint[]>([]);
   const [isHovering, setIsHovering] = useState(false);
-  const [previousValue, setPreviousValue] = useState<number | null>(null);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialMount = useRef(true);
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
+  const [latestValue, setLatestValue] = useState<number | null>(null);
+  const [min, setMin] = useState<number>(0);
+  const [max, setMax] = useState<number>(0);
+  const [avg, setAvg] = useState<number>(0);
 
   // Use CSS variables for chart colors, falling back to --chart-1 if not specified
   const color = `var(--chart-${colorIndex})`;
+
+  // Keep track of first data update
+  const isFirstDataRef = useRef(true);
 
   // Safely calculate current value
   const safeCurrentValue = useMemo(() => {
     if (chartData.length === 0) return 0;
     return Number(chartData[chartData.length - 1][dataKey]) || 0;
   }, [chartData, dataKey]);
-
-  // Calculate stats from data
-  const stats = useMemo(() => {
-    if (chartData.length === 0) return { current: 0, min: 0, max: 0, avg: 0, trend: 0 };
-
-    const values = chartData.map((item) => Number(item[dataKey]) || 0);
-    const sum = values.reduce((acc, val) => acc + val, 0);
-
-    const current = values[values.length - 1];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const avg = sum / values.length;
-    const trend = previousValue !== null ? current - previousValue : 0;
-
-    return {
-      current,
-      min,
-      max,
-      avg: avg.toFixed(2),
-      trend,
-    };
-  }, [chartData, dataKey, previousValue]);
 
   // Update chart data
   useEffect(() => {
@@ -95,14 +87,54 @@ export function MetricsChart({
     if (isInitialMount.current) {
       isInitialMount.current = false;
       setChartData(data);
+
+      // Update min, max, avg statistics if we have data
+      if (data.length > 0) {
+        const values = data.map((d) => Number(d[dataKey]) || 0);
+        const newMin = Math.min(...values);
+        const newMax = Math.max(...values);
+        const newAvg = values.reduce((sum, val) => sum + val, 0) / values.length;
+
+        setMin(newMin);
+        setMax(newMax);
+        setAvg(newAvg);
+
+        // Update latest value
+        const latest = data[data.length - 1][dataKey] as number;
+        setLatestValue(latest);
+      }
+
       return;
     }
 
-    // Store previous value for trend calculation
-    setPreviousValue(safeCurrentValue);
-    setChartData(data);
+    // Sort data by timestamp
+    const sortedData = [...data].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+
+    setChartData(sortedData);
+
+    // Update min, max, avg statistics if we have data
+    if (sortedData.length > 0) {
+      const values = sortedData.map((d) => Number(d[dataKey]) || 0);
+      const newMin = Math.min(...values);
+      const newMax = Math.max(...values);
+      const newAvg = values.reduce((sum, val) => sum + val, 0) / values.length;
+
+      // Smooth transitions for statistics
+      setMin((prev) => (isFirstDataRef.current ? newMin : prev * 0.7 + newMin * 0.3));
+      setMax((prev) => (isFirstDataRef.current ? newMax : prev * 0.7 + newMax * 0.3));
+      setAvg((prev) => (isFirstDataRef.current ? newAvg : prev * 0.7 + newAvg * 0.3));
+
+      // Update latest value with smooth transition
+      const latest = sortedData[sortedData.length - 1][dataKey] as number;
+      setLatestValue(latest);
+
+      isFirstDataRef.current = false;
+    }
+
     setLastUpdateTime(Date.now());
-  }, [data, safeCurrentValue]);
+  }, [data, dataKey, safeCurrentValue]);
 
   // Handle refresh interval
   useEffect(() => {
@@ -116,9 +148,7 @@ export function MetricsChart({
     if (refreshInterval && refreshInterval > 0 && !isHovering && chartData.length > 0) {
       refreshTimerRef.current = setInterval(() => {
         // Trigger a re-render without changing the state
-        // This is safe and won't cause an infinite loop
-        const currentData = [...chartData];
-        setChartData(currentData);
+        setLastUpdateTime(Date.now());
       }, refreshInterval);
     }
 
@@ -128,25 +158,21 @@ export function MetricsChart({
         refreshTimerRef.current = null;
       }
     };
-  }, [refreshInterval, isHovering, chartData.length, chartData]);
+  }, [refreshInterval, isHovering, chartData.length]);
 
-  const formatTimestamp = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString("en-US", {
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+  // Format the timestamp for display
+  const formatTimestamp = (timestamp: number | string) => {
+    return format(new Date(timestamp), "HH:mm:ss");
   };
 
   // Format relative time since last update
-  const formatLastUpdateTime = () => {
+  const formatLastUpdateTime = useCallback(() => {
     const seconds = Math.floor((Date.now() - lastUpdateTime) / 1000);
     if (seconds < 5) return "just now";
     if (seconds < 60) return `${seconds}s ago`;
     const minutes = Math.floor(seconds / 60);
     return `${minutes}m ago`;
-  };
+  }, [lastUpdateTime]);
 
   // Create empty data if no data is provided to ensure chart and legend always show
   const displayData = useMemo(() => {
@@ -173,7 +199,7 @@ export function MetricsChart({
       );
     }
 
-    const currentValue = stats.current;
+    const currentValue = latestValue ?? 0;
 
     if (thresholds.critical !== undefined && currentValue >= thresholds.critical) {
       return (
@@ -235,30 +261,85 @@ export function MetricsChart({
     );
   };
 
-  // Container style
-  const containerStyle = { height: `${height}px` };
+  // Custom tooltip component for better performance
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+    if (active && payload && payload.length) {
+      const dataPoint = payload[0].payload as TimeSeriesPoint;
+      const value = Number(dataPoint[dataKey] || 0);
+      const timestamp = dataPoint.timestamp;
+      const formattedTime = formatTimestamp(timestamp);
+
+      // Determine status for this specific data point
+      let status = "Good";
+      let statusColor = "var(--chart-3)"; // Green color
+      let statusBgClass = "bg-chart-3/10";
+
+      if (thresholds?.critical !== undefined && value >= thresholds.critical) {
+        status = "Critical";
+        statusColor = "var(--chart-5)"; // Red color
+        statusBgClass = "bg-chart-5/10";
+      } else if (thresholds?.warning !== undefined && value >= thresholds.warning) {
+        status = "Warning";
+        statusColor = "var(--chart-4)"; // Yellow/Orange color
+        statusBgClass = "bg-chart-4/10";
+      }
+
+      return (
+        <Card className="border-border/30 bg-card/95 min-w-[180px] px-3 py-2 shadow-md backdrop-blur-sm">
+          <p className="text-card-foreground mb-2 text-xs font-medium">
+            <ClockIcon className="mr-1 mb-0.5 inline h-3 w-3" />
+            {formattedTime}
+          </p>
+          <p className="text-card-foreground flex items-center justify-between gap-2 text-xs">
+            <span>{label}:</span>
+            <span className="font-medium" style={{ color }}>
+              {formatValue(value)}
+            </span>
+          </p>
+          <div
+            className={`mt-1 flex items-center justify-between rounded-sm px-1.5 py-0.5 text-xs ${statusBgClass}`}
+            style={{ color: statusColor }}
+          >
+            <span className="font-medium">Status:</span>
+            <span>{status}</span>
+          </div>
+        </Card>
+      );
+    }
+    return null;
+  };
+
+  // Dynamic min/max to make chart more responsive
+  const dynamicDomain = useMemo(() => {
+    if (displayData.length === 0) return [0, 10];
+    const values = displayData.map((d) => Number(d[dataKey] || 0));
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const padding = Math.max(0.1, (maxVal - minVal) * 0.1);
+    return [Math.max(0, minVal - padding), maxVal + padding];
+  }, [displayData, dataKey]);
 
   return (
-    <div className="w-full rounded-md" style={containerStyle}>
+    <div className="flex h-full flex-col rounded-md">
+      <div className="mb-1 flex items-baseline justify-between">
+        <h3 className="text-lg font-medium">{label}</h3>
+      </div>
+
       {showMiniStats && (
-        <div className="flex h-8 items-center justify-between">
-          <div className="flex flex-wrap gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <div>
-                <span className="text-muted-foreground">Min: </span>
-                <span className="font-medium">{formatValue(stats.min)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Avg: </span>
-                <span className="font-medium">{formatValue(Number(stats.avg))}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Max: </span>
-                <span className="font-medium">{formatValue(stats.max)}</span>
-              </div>
-            </div>
+        <div className="mb-3 flex gap-4 text-sm">
+          <div>
+            <span className="text-neutral-500">Min: </span>
+            <span className="font-medium">{formatValue(min)}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div>
+            <span className="text-neutral-500">Avg: </span>
+            <span className="font-medium">{formatValue(avg)}</span>
+          </div>
+          <div>
+            <span className="text-neutral-500">Max: </span>
+            <span className="font-medium">{formatValue(max)}</span>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
             {getConnectivityIndicator()}
             {getStatusIndicator()}
           </div>
@@ -266,11 +347,9 @@ export function MetricsChart({
       )}
 
       <div
-        className="relative h-[calc(100%-32px)] w-full"
-        style={{ height: showMiniStats ? `calc(100% - 32px)` : "100%" }}
+        className="relative flex-1"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
-        tabIndex={0}
       >
         {chartData.length > 0 && !isDataStale && (
           <div className="bg-card/80 absolute top-0 right-0 z-10 m-2 flex items-center gap-1 rounded-md px-2 py-1 text-xs shadow-sm backdrop-blur-sm">
@@ -280,24 +359,25 @@ export function MetricsChart({
           </div>
         )}
 
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={displayData}>
+        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <AreaChart data={displayData} accessibilityLayer>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis
               dataKey="timestamp"
               tickFormatter={formatTimestamp}
-              tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-              tickMargin={10}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              minTickGap={15}
               stroke="var(--border)"
               opacity={0.7}
               height={35}
             />
             <YAxis
-              tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-              tickMargin={10}
+              domain={dynamicDomain}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tickFormatter={(val) => formatValue(val)}
+              width={40}
               stroke="var(--border)"
               opacity={0.7}
-              width={45}
               padding={{ top: 20, bottom: 20 }}
             />
 
@@ -363,69 +443,19 @@ export function MetricsChart({
                 isFront={true}
               />
             )}
-
-            <Tooltip
-              content={({ active, payload }) => {
-                if (active && payload && payload.length) {
-                  const value = Number(payload[0].value || 0);
-                  const timestamp = payload[0].payload.timestamp;
-                  const formattedTime = formatTimestamp(timestamp);
-
-                  // Determine status for this specific data point
-                  let status = "Good";
-                  let statusColor = "var(--chart-3)"; // Green color
-                  let statusBgClass = "bg-chart-3/10";
-
-                  if (thresholds?.critical !== undefined && value >= thresholds.critical) {
-                    status = "Critical";
-                    statusColor = "var(--chart-5)"; // Red color
-                    statusBgClass = "bg-chart-5/10";
-                  } else if (thresholds?.warning !== undefined && value >= thresholds.warning) {
-                    status = "Warning";
-                    statusColor = "var(--chart-4)"; // Yellow/Orange color
-                    statusBgClass = "bg-chart-4/10";
-                  }
-
-                  return (
-                    <Card className="border-border/30 bg-card/95 min-w-[180px] px-3 py-2 shadow-md backdrop-blur-sm">
-                      <p className="text-card-foreground mb-2 text-xs font-medium">
-                        <ClockIcon className="mr-1 mb-0.5 inline h-3 w-3" />
-                        {formattedTime}
-                      </p>
-                      <p className="text-card-foreground flex items-center justify-between gap-2 text-xs">
-                        <span>{label}:</span>
-                        <span className="font-medium" style={{ color }}>
-                          {typeof value === "number" ? formatValue(value) : value}
-                        </span>
-                      </p>
-                      <div
-                        className={`mt-1 flex items-center justify-between rounded-sm px-1.5 py-0.5 text-xs ${statusBgClass}`}
-                        style={{ color: statusColor }}
-                      >
-                        <span className="font-medium">Status:</span>
-                        <span>{status}</span>
-                      </div>
-                    </Card>
-                  );
-                }
-                return null;
-              }}
-            />
-
-            <Line
+            <Tooltip content={<CustomTooltip />} />
+            <Area
               type="monotone"
-              dataKey={dataKey}
-              stroke={color}
-              strokeWidth={3}
-              dot={false}
-              activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--background)" }}
+              dataKey={dataKey as string}
+              fill="var(--color-desktop)"
+              fillOpacity={0.3}
+              stroke="var(--color-desktop)"
+              animationDuration={600}
               isAnimationActive={true}
-              animationDuration={200}
-              name={label}
               connectNulls={true}
             />
-          </LineChart>
-        </ResponsiveContainer>
+          </AreaChart>
+        </ChartContainer>
       </div>
     </div>
   );

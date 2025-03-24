@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const rawConfig = await request.json();
     const config: StressTestConfig = {
-      target_url: "https://example.com",
+      target_url: rawConfig.target_url,
       duration_secs: Number(rawConfig.duration_secs) || 60,
       concurrency: Number(rawConfig.concurrency) || 10,
     };

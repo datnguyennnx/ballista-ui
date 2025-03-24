@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const rawConfig = await request.json();
     const config: ApiTestConfig = {
-      target_url: "https://example.com",
+      target_url: rawConfig.target_url,
       test_suite_path: rawConfig.test_suite_path || "/tests/default.json",
     };
 
