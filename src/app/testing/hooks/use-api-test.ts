@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TestUpdate, TestType, TestStatus } from "@/types/index";
+import { TestUpdate, TestType } from "@/types/index";
 import { LoadConfigType, TestState } from "../types/test-types";
 import { TimeSeriesPoint } from "../types/time-series";
 import { generateFakeTestData, createTestMetrics } from "../shared/mock-data";
@@ -52,7 +52,7 @@ export function useApiTest() {
         const update: TestUpdate = JSON.parse(event.data);
 
         if (update.test_type === TestType.Api) {
-          const activity = `${update.status === TestStatus.Completed ? "✅" : "🔄"} API Test: ${update.progress.toFixed(0)}% - ${update.status}`;
+          const activity = `API Test: ${update.progress.toFixed(0)}% - ${update.status}`;
           setActivities((prev) => [activity, ...prev].slice(0, 4));
 
           setApiTest({
@@ -128,7 +128,7 @@ export function useApiTest() {
       setLastTimestamp(0);
     } catch (error) {
       console.error("Failed to start API test:", error);
-      setActivities(["❌ Failed to start API test: Invalid configuration"]);
+      setActivities(["Failed to start API test: Invalid configuration"]);
     }
   };
 
@@ -141,7 +141,7 @@ export function useApiTest() {
     setApiTest({ progress: 0, status: "running" });
 
     // Clear previous activities and add initial activity
-    setActivities(["🔄 API Test: 0% - Started"]);
+    setActivities(["API Test: 0% - Started"]);
 
     // Generate all data points upfront
     const fakeData = generateFakeTestData("api");
@@ -170,7 +170,7 @@ export function useApiTest() {
         });
 
         // Add completion activity
-        setActivities((prev) => ["✅ API Test: 100% - Completed", ...prev].slice(0, 4));
+        setActivities((prev) => ["API Test: 100% - Completed", ...prev].slice(0, 4));
 
         setIsFakeTestRunning(false);
         return;
@@ -194,7 +194,7 @@ export function useApiTest() {
 
       // Add progress update activity every 25%
       if (progress % 25 === 0 && progress > 0) {
-        setActivities((prev) => [`🔄 API Test: ${progress}% - Running`, ...prev].slice(0, 4));
+        setActivities((prev) => [`API Test: ${progress}% - Running`, ...prev].slice(0, 4));
       }
 
       currentIndex++;

@@ -31,7 +31,7 @@ export function useFakeTest(testType: "load" | "stress") {
 
     // Clear previous activities and add initial activity
     setActivities([
-      `${testType === "load" ? "🔄" : "⚡"} ${testType.charAt(0).toUpperCase() + testType.slice(1)} Test: 0% - Started`,
+      `${testType.charAt(0).toUpperCase() + testType.slice(1)} Test: 0% - Started`,
       `Target URL: ${config.target_url}`,
       `Duration: ${config.duration}s, Ramp-up: ${config.rampUp}s`,
     ]);
@@ -70,7 +70,7 @@ export function useFakeTest(testType: "load" | "stress") {
 
         // Add detailed completion activities
         setActivities((prev: string[]) => [
-          `${testType === "load" ? "✅" : "🎉"} ${testType.charAt(0).toUpperCase() + testType.slice(1)} Test: 100% - Completed`,
+          `${testType.charAt(0).toUpperCase() + testType.slice(1)} Test: 100% - Completed`,
           `Results: ${finalMetrics.requests_completed} requests, ${finalMetrics.errors} errors`,
           `Avg Response Time: ${Math.round(finalMetrics.avg_response_time)}ms`,
           `Success Rate: ${(((finalMetrics.requests_completed - finalMetrics.errors) / finalMetrics.requests_completed) * 100).toFixed(1)}%`,
@@ -104,7 +104,7 @@ export function useFakeTest(testType: "load" | "stress") {
         const currentErrors = Math.round(dataPoint.errorRate * 100);
 
         setActivities((prev: string[]) => [
-          `${testType === "load" ? "🔄" : "⚡"} ${testType.charAt(0).toUpperCase() + testType.slice(1)} Test: ${progress}% - Running`,
+          `${testType.charAt(0).toUpperCase() + testType.slice(1)} Test: ${progress}% - Running`,
           `Current RPS: ${currentRPS}, Response Time: ${currentRT}ms`,
           `Error Rate: ${currentErrors}%`,
           ...prev.slice(0, 2),

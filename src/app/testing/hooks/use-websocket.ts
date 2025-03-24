@@ -17,7 +17,7 @@ export function useWebSocket(testType: TestType) {
       const connected = connectionState === "connected";
       setIsConnected(connected);
       if (connected) {
-        setActivities((prev) => ["🔌 Connected to test server", ...prev].slice(0, 4));
+        setActivities((prev) => ["Connected to test server", ...prev].slice(0, 4));
       } else if (connectionState === "disconnected" && testState.status === "running") {
         setTestState((prev) => ({
           ...prev,

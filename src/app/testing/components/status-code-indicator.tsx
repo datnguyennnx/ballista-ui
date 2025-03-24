@@ -7,47 +7,55 @@ interface StatusCodeIndicatorProps {
 
 export function StatusCodeIndicator({ statusCodes, totalRequests }: StatusCodeIndicatorProps) {
   if (Object.keys(statusCodes).length === 0) {
-    return <p className="text-muted-foreground text-xs">No status codes recorded</p>;
+    return <p className="text-muted-foreground text-sm">No status codes recorded</p>;
   }
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-        {Object.entries(statusCodes).map(([code, count]) => {
-          const percentage = (count / totalRequests) * 100;
-          const colorClass = code.startsWith("2")
-            ? "bg-chart-3 text-chart-3"
-            : code.startsWith("5")
-              ? "bg-chart-4 text-chart-4"
-              : "bg-chart-5 text-chart-5";
+      {Object.entries(statusCodes).map(([code, count]) => {
+        const percentage = (count / totalRequests) * 100;
+        let colorClass;
+        let statusText;
 
-          return (
-            <div key={code} className="flex flex-col space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={cn(
-                      "inline-block h-2.5 w-2.5 rounded-full",
-                      colorClass.split(" ")[0],
-                    )}
-                  />
-                  <span className="font-medium">{code}</span>
-                </div>
-                <span className="text-muted-foreground">{count}</span>
+        switch (code[0]) {
+          case "2":
+            colorClass = "bg-chart-2";
+            statusText = "Success";
+            break;
+          case "4":
+            colorClass = "bg-chart-1";
+            statusText = "Client Error";
+            break;
+          case "5":
+            colorClass = "bg-chart-5";
+            statusText = "Server Error";
+            break;
+          default:
+            colorClass = "bg-chart-3";
+            statusText = "Information";
+        }
+
+        return (
+          <div key={code} className="space-y-1.5">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <div className={cn("h-2 w-2 rounded-full", colorClass)} />
+                <span className="font-medium">{code}</span>
+                <span className="text-muted-foreground text-xs">{statusText}</span>
               </div>
-              <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all duration-500",
-                    colorClass.split(" ")[0],
-                  )}
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
+              <span className="text-muted-foreground text-xs">
+                {count} ({percentage.toFixed(1)}%)
+              </span>
             </div>
-          );
-        })}
-      </div>
+            <div className="bg-muted/30 h-1 w-full overflow-hidden rounded-full">
+              <div
+                className={cn("h-full rounded-full transition-all duration-500", colorClass)}
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

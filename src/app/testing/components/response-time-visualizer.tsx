@@ -33,11 +33,11 @@ export function ResponseTimeVisualizer({
         {/* Color gradient track */}
         <div className="absolute top-0 left-0 h-full w-full rounded-full">
           <div
-            className="bg-chart-3 absolute top-0 left-0 h-full"
+            className="bg-chart-2 absolute top-0 left-0 h-full"
             style={{ width: `${warningPosition}%` }}
           />
           <div
-            className="bg-chart-4 absolute top-0 h-full"
+            className="bg-chart-1 absolute top-0 h-full"
             style={{
               left: `${warningPosition}%`,
               width: `${criticalPosition - warningPosition}%`,
@@ -45,7 +45,7 @@ export function ResponseTimeVisualizer({
           />
           {isCritical && (
             <div
-              className="bg-chart-5 absolute top-0 right-0 h-full"
+              className="bg-chart-1 absolute top-0 right-0 h-full"
               style={{ width: `${Math.min(100 - criticalPosition, 100)}%` }}
             />
           )}
@@ -55,7 +55,7 @@ export function ResponseTimeVisualizer({
         <div
           className={cn(
             "border-background absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-sm transition-all duration-300",
-            isGood ? "bg-chart-3" : isWarning ? "bg-chart-4" : "bg-chart-5",
+            isGood ? "bg-chart-2" : isWarning ? "bg-chart-1" : "bg-chart-5",
           )}
           style={{ left: `${valuePosition}%` }}
         />

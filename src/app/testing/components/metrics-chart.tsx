@@ -13,14 +13,7 @@ import {
 import { format } from "date-fns";
 import { TimeSeriesPoint } from "../types/time-series";
 import { Card } from "@/components/ui/card";
-import {
-  ActivityIcon,
-  AlertCircleIcon,
-  CheckCircleIcon,
-  WifiIcon,
-  WifiOffIcon,
-  ClockIcon,
-} from "lucide-react";
+import { AlertCircleIcon, CheckCircleIcon, WifiIcon, WifiOffIcon, ClockIcon } from "lucide-react";
 import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Badge } from "@/components/ui/badge";
 
@@ -42,7 +35,7 @@ interface MetricsChartProps {
 const chartConfig = {
   desktop: {
     label: "Desktop",
-    color: "var(--chart-1)",
+    color: "var(--chart-primary)",
   },
 } satisfies ChartConfig;
 
@@ -350,14 +343,6 @@ export function MetricsChart({
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
-        {chartData.length > 0 && !isDataStale && (
-          <div className="bg-card/80 absolute top-0 right-0 z-10 m-2 flex items-center gap-1 rounded-md px-2 py-1 text-xs shadow-sm backdrop-blur-sm">
-            <ActivityIcon className="text-chart-3 h-3 w-3 animate-pulse" />
-            <ClockIcon className="text-muted-foreground h-3 w-3" />
-            <span className="text-muted-foreground">{formatLastUpdateTime()}</span>
-          </div>
-        )}
-
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
           <AreaChart data={displayData} accessibilityLayer>
             <CartesianGrid vertical={false} />

@@ -1,14 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, AlertCircle, Info, User, Clock } from "lucide-react";
-import { useEffect, useRef, useMemo } from "react";
+import { AlertCircle, CheckCircle, Clock, Loader2, Network } from "lucide-react";
+import { useMemo } from "react";
 
 interface Activity {
   id: string;
   message: string;
-  timestamp: Date;
-  type: "info" | "success" | "warning" | "error";
-  isUserAction?: boolean;
+  type?: "success" | "error" | "loading" | "network";
 }
 
 interface ActivityLogProps {
@@ -17,61 +15,40 @@ interface ActivityLogProps {
 }
 
 export function ActivityLog({ activities }: ActivityLogProps) {
-  const processedIds = useRef<Set<string>>(new Set());
-
   // Check if we're using the new Activity format or legacy string format
   const isLegacyFormat = activities.length > 0 && typeof activities[0] === "string";
 
   // Function to parse legacy activity strings into structured format
   const parseActivity = (activity: string): Activity => {
-    let type: "info" | "success" | "warning" | "error" = "info";
-    let isUserAction = false;
-
-    // Try to detect user actions
-    if (
-      activity.includes("started") ||
-      activity.includes("Started") ||
-      activity.includes("loaded") ||
-      activity.includes("generated") ||
-      activity.includes("Generate Demo") ||
-      activity.includes("clicked")
-    ) {
-      isUserAction = true;
-    }
-
-    // Try to detect type from emoji or content
-    if (
-      activity.includes("✅") ||
-      activity.includes("Completed") ||
-      activity.includes("completed")
-    ) {
-      type = "success";
-    } else if (
-      activity.includes("❌") ||
-      activity.includes("error") ||
-      activity.includes("Error") ||
-      activity.includes("failed") ||
-      activity.includes("Failed") ||
-      activity.includes("lost") ||
-      activity.includes("interrupted") ||
-      activity.includes("Interrupted")
-    ) {
-      type = "error";
-    } else if (
-      activity.includes("⚠️") ||
-      activity.includes("warning") ||
-      activity.includes("Warning")
-    ) {
-      type = "warning";
-    }
-
+    const type = determineActivityType(activity);
     return {
       id: Math.random().toString(36).substring(2),
-      message: activity.replace(/^[✅❌🔄⚠️]\s*/, ""), // Remove leading emoji if present
-      timestamp: new Date(),
+      message: activity,
       type,
-      isUserAction,
     };
+  };
+
+  // Determine activity type based on message content
+  const determineActivityType = (message: string): Activity["type"] => {
+    const lowerMessage = message.toLowerCase();
+
+    if (lowerMessage.includes("failed") || lowerMessage.includes("error")) {
+      return "error";
+    }
+    if (
+      lowerMessage.includes("started") ||
+      lowerMessage.includes("completed") ||
+      lowerMessage.includes("success")
+    ) {
+      return "success";
+    }
+    if (lowerMessage.includes("preparing") || lowerMessage.includes("sending")) {
+      return "loading";
+    }
+    if (lowerMessage.includes("request") || lowerMessage.includes("http")) {
+      return "network";
+    }
+    return undefined;
   };
 
   // Convert to consistent format - memoized to prevent recreating on every render
@@ -81,140 +58,46 @@ export function ActivityLog({ activities }: ActivityLogProps) {
       : (activities as Activity[]);
   }, [activities, isLegacyFormat]);
 
-  // Just track new activities for processing IDs, without animation
-  useEffect(() => {
-    if (formattedActivities.length === 0) return;
-
-    formattedActivities.forEach((activity) => {
-      if (!processedIds.current.has(activity.id)) {
-        processedIds.current.add(activity.id);
-      }
-    });
-  }, [formattedActivities]);
-
-  // Get icon and color based on activity type
-  const getActivityIcon = (activity: Activity) => {
-    if (activity.isUserAction) {
-      return <User className="h-4 w-4 text-slate-600" />;
-    }
-
-    switch (activity.type) {
+  // Get icon based on activity type
+  const getActivityIcon = (type?: Activity["type"]) => {
+    switch (type) {
       case "success":
-        return <CheckCircle className="text-chart-3 h-4 w-4" />;
-      case "warning":
-        return <AlertCircle className="text-chart-4 h-4 w-4" />;
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
       case "error":
-        return <AlertCircle className="text-chart-5 h-4 w-4" />;
-      case "info":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      case "loading":
+        return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+      case "network":
+        return <Network className="h-4 w-4 text-purple-500" />;
       default:
-        return <Info className="text-chart-2 h-4 w-4" />;
+        return <Clock className="h-4 w-4 text-gray-500" />;
     }
-  };
-
-  // Extract status information from message (e.g., 100%, 50%, 0%)
-  const extractStatus = (
-    message: string,
-  ): { prefix: string; status: string; suffix: string } | null => {
-    // Match "Load Test: X% - Status" pattern
-    const statusMatch = message.match(/(Load Test:)\s*(\d+%)\s*-\s*(.*)/i);
-    if (statusMatch) {
-      return {
-        prefix: statusMatch[1],
-        status: statusMatch[2],
-        suffix: statusMatch[3],
-      };
-    }
-
-    // Match HTTP status pattern: (HTTP XXX Status)
-    const httpMatch = message.match(/(.*)\(HTTP\s+(\d+)\s+(.*)\)(.*)/);
-    if (httpMatch) {
-      return {
-        prefix: httpMatch[1].trim(),
-        status: `HTTP ${httpMatch[2]}`,
-        suffix: httpMatch[3] + (httpMatch[4] || ""),
-      };
-    }
-
-    return null;
-  };
-
-  // Format the timestamp
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  };
-
-  // Format relative time (e.g., "2 min ago")
-  const formatRelativeTime = (date: Date) => {
-    const now = new Date();
-    const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (diffSeconds < 5) return "just now";
-    if (diffSeconds < 60) return `${diffSeconds}s ago`;
-
-    const diffMinutes = Math.floor(diffSeconds / 60);
-    if (diffMinutes < 60) return `${diffMinutes}m ago`;
-
-    const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-
-    return formatTime(date);
   };
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="flex flex-shrink-0 items-center justify-between pb-2">
-        <CardTitle className="text-lg">Recent Activities</CardTitle>
-        {formattedActivities.length > 0 && (
-          <div className="text-muted-foreground flex items-center gap-1 text-xs">
-            <Clock className="h-3.5 w-3.5" />
-            <span>Last update: {formatRelativeTime(formattedActivities[0].timestamp)}</span>
-          </div>
-        )}
+    <Card className="flex h-fit flex-col">
+      <CardHeader className="flex-shrink-0 border-b pb-2">
+        <CardTitle className="text-lg font-semibold">Load Test Activity</CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow overflow-hidden p-3">
+      <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full">
-          <div className="space-y-3 pr-4">
+          <div className="space-y-2 p-4">
             {formattedActivities.length === 0 ? (
               <p className="text-muted-foreground py-4 text-center text-sm">
-                No recent activities. Start a test to see activity logs.
+                No load test activities recorded yet. Start a test to see activity logs.
               </p>
             ) : (
-              formattedActivities.map((activity) => {
-                const statusInfo = extractStatus(activity.message);
-
-                return (
-                  <div
-                    key={activity.id}
-                    className="bg-card/30 -ml-1 flex flex-col rounded-md py-2 pl-2"
-                  >
-                    <div className="flex items-center">
-                      <div className="mr-2 flex-shrink-0">{getActivityIcon(activity)}</div>
-                      <div className="flex-grow">
-                        {statusInfo ? (
-                          <div className="flex flex-col">
-                            <div className="flex items-baseline">
-                              <span className="mr-1 ml-1 text-sm font-semibold">
-                                {statusInfo.status}
-                              </span>
-                              <span className="text-sm">- {statusInfo.suffix}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-sm">{activity.message}</span>
-                        )}
-                      </div>
-                      <div className="text-muted-foreground flex flex-shrink-0 items-center text-xs">
-                        <span title={"timestamp"}>{formatRelativeTime(activity.timestamp)}</span>
-                      </div>
-                    </div>
+              formattedActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="group bg-card/50 hover:bg-card/80 relative flex items-center gap-3 rounded-lg p-3 transition-all"
+                >
+                  <div className="flex-shrink-0">{getActivityIcon(activity.type)}</div>
+                  <div className="min-w-0 flex-grow">
+                    <p className="text-sm font-medium">{activity.message}</p>
                   </div>
-                );
-              })
+                </div>
+              ))
             )}
           </div>
         </ScrollArea>

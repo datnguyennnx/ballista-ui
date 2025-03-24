@@ -13,12 +13,12 @@ interface MetricCardsProps {
 // Helper function to get status color based on thresholds
 function getStatusColor(value: number, thresholds: { warning?: number; critical?: number }) {
   if (thresholds.critical !== undefined && value >= thresholds.critical) {
-    return "text-chart-5";
+    return "text-chart-2";
   }
   if (thresholds.warning !== undefined && value >= thresholds.warning) {
-    return "text-chart-4";
+    return "text-chart-3";
   }
-  return "text-chart-3";
+  return "text-chart-1";
 }
 
 export function MetricCards({ metrics, isRunning }: MetricCardsProps) {
@@ -50,26 +50,38 @@ export function MetricCards({ metrics, isRunning }: MetricCardsProps) {
       <MetricCard
         title="Requests"
         value={
-          <div className="flex items-baseline gap-1">
-            {metrics.requests_completed}
+          <div className="flex items-baseline space-x-1">
+            <span className="text-2xl font-semibold">{metrics.requests_completed}</span>
             <span className="text-muted-foreground text-sm">/ {metrics.total_requests}</span>
           </div>
         }
-        description={`${completionPercentage}% complete`}
-        isRunning={isRunning}
         additionalContent={
-          <div className="mt-2 flex items-center justify-between">
-            <Badge variant="outline" className="flex items-center gap-1 px-2 py-1 text-xs">
+          <div className="mt-2 space-y-3">
+            <p className="text-muted-foreground text-sm">{completionPercentage}% complete</p>
+            <div className="bg-muted/20 h-2 w-full overflow-hidden rounded-full">
+              <div
+                className="bg-chart-2 h-full rounded-full transition-all duration-500"
+                style={{ width: `${completionPercentage}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between">
               {isRunning ? (
-                <ActivityIcon className="text-chart-3 h-3 w-3 animate-pulse" />
+                <div className="flex items-center gap-1.5">
+                  <ActivityIcon className="text-chart-2 h-3.5 w-3.5" />
+                  <span className="text-chart-2 text-sm font-medium">Running</span>
+                </div>
               ) : (
-                <CheckCircleIcon className="text-chart-3 h-3 w-3" />
+                <div className="bg-chart-2/10 text-chart-2 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                  <span>Completed</span>
+                </div>
               )}
-              <span>{isRunning ? "Running" : "Completed"}</span>
-            </Badge>
-            <span className="text-muted-foreground text-xs font-medium">
-              {metrics.total_requests - metrics.requests_completed} remaining
-            </span>
+              <span className="text-muted-foreground text-sm">
+                {metrics.total_requests - metrics.requests_completed > 0
+                  ? `${metrics.total_requests - metrics.requests_completed} remaining`
+                  : "All requests completed"}
+              </span>
+            </div>
           </div>
         }
       />
@@ -88,9 +100,9 @@ export function MetricCards({ metrics, isRunning }: MetricCardsProps) {
               className="h-2"
             />
             <div className="flex items-center justify-between text-xs">
-              <span className="text-chart-3">Fast</span>
-              <span className="text-chart-4">Medium</span>
-              <span className="text-chart-5">Slow</span>
+              <p className="text-chart-2 font-extrabold">Fast</p>
+              <p className="font-extrabold">Medium</p>
+              <p className="text-chart-1 font-extrabold">Slow</p>
             </div>
           </div>
         }
@@ -132,7 +144,7 @@ export function MetricCards({ metrics, isRunning }: MetricCardsProps) {
                     {metrics.errors > 0 ? (
                       <AlertCircleIcon className="h-3 w-3" />
                     ) : (
-                      <CheckCircleIcon className="text-chart-3 h-3 w-3" />
+                      <CheckCircleIcon className="text-chart-1 h-3 w-3" />
                     )}
                     <span>{metrics.errors > 0 ? `${metrics.errors} Errors` : "No Errors"}</span>
                   </Badge>

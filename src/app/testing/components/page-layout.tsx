@@ -49,9 +49,9 @@ export function PageLayout({
       {summaryArea}
 
       {/* Main content - Desktop layout */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
         {/* Main content area - Takes 2/3 of the screen width on md+ screens */}
-        <div className="md:col-span-2">{mainContent}</div>
+        <div className="md:col-span-3">{mainContent}</div>
 
         {/* Sidebar content - Takes 1/3 of the screen width on md+ screens */}
         <div className="space-y-6">{sidebarContent}</div>
