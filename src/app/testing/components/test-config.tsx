@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, HelpCircle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -13,10 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { TestState, LoadConfigType } from "../types/test-types";
 import { Textarea } from "@/components/ui/textarea";
 import { wsClient } from "@/lib/websocket";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface TestConfigProps {
   loadConfig: LoadConfigType;
@@ -27,7 +34,6 @@ interface TestConfigProps {
   isFakeTestRunning: boolean;
   testType?: "load" | "stress" | "api";
 }
-
 export function TestConfig({
   loadConfig,
   setLoadConfig,
@@ -40,6 +46,7 @@ export function TestConfig({
   const isRunning = loadTest.status === "running" || isFakeTestRunning;
   const [isStarting, setIsStarting] = useState(false);
   const [headersString, setHeadersString] = useState<string>("{}");
+  const [bodyString, setBodyString] = useState<string>("{}");
   const [connecting, setConnecting] = useState(false);
 
   const updateConfig = (key: keyof LoadConfigType, value: unknown) => {
@@ -51,13 +58,21 @@ export function TestConfig({
 
   const updateHeaders = (headersJson: string) => {
     try {
-      // Try to parse headers as JSON
       const headers = JSON.parse(headersJson);
       updateConfig("headers", headers);
       setHeadersString(headersJson);
     } catch {
-      // Just update the string value if it's not valid JSON yet
       setHeadersString(headersJson);
+    }
+  };
+
+  const updateBody = (bodyJson: string) => {
+    try {
+      const body = JSON.parse(bodyJson);
+      updateConfig("body", body);
+      setBodyString(bodyJson);
+    } catch {
+      setBodyString(bodyJson);
     }
   };
 
@@ -158,13 +173,6 @@ export function TestConfig({
     }
   };
 
-  // Determine which fields to show based on test type
-  const showDuration = testType === "stress";
-  const showRampUp = testType === "stress";
-  const showThinkTime = testType === "stress";
-  const showTestSuite = testType === "api";
-  const showHttpMethod = testType === "api";
-  const showRequestBody = loadConfig.method !== "GET";
   return (
     <Card>
       <CardHeader>
@@ -173,150 +181,144 @@ export function TestConfig({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="url">Endpoint URL</Label>
-          <Input
-            id="url"
-            value={loadConfig.target_url}
-            onChange={(e) => updateConfig("target_url", e.target.value)}
-            placeholder="https://example.com/endpoint"
-            disabled={isRunning}
-          />
-        </div>
-
-        {showHttpMethod && (
+        {testType === "api" && (
           <div className="space-y-2">
-            <Label htmlFor="method">HTTP Method</Label>
-            <Select
-              value={loadConfig.method}
-              onValueChange={(value: string) => updateConfig("method", value)}
+            <Label htmlFor="url">Endpoint URL</Label>
+            <Input
+              id="url"
+              value={loadConfig.target_url}
+              onChange={(e) => updateConfig("target_url", e.target.value)}
+              placeholder="https://example.com/endpoint"
               disabled={isRunning}
-            >
-              <SelectTrigger id="method">
-                <SelectValue placeholder="Select method" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="GET">GET</SelectItem>
-                <SelectItem value="POST">POST</SelectItem>
-                <SelectItem value="PUT">PUT</SelectItem>
-                <SelectItem value="DELETE">DELETE</SelectItem>
-                <SelectItem value="PATCH">PATCH</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="headers">Headers (JSON format)</Label>
-          <Textarea
-            id="headers"
-            value={headersString}
-            onChange={(e) => updateHeaders(e.target.value)}
-            placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'
-            disabled={isRunning}
-            className="h-24 font-mono text-sm"
-          />
-        </div>
-
-        {showRequestBody && (
-          <div className="space-y-2">
-            <Label htmlFor="body">Request Body</Label>
-            <Textarea
-              id="body"
-              value={loadConfig.body || ""}
-              onChange={(e) => updateConfig("body", e.target.value)}
-              placeholder='{"key": "value"}'
-              disabled={isRunning}
-              className="h-24 font-mono text-sm"
             />
           </div>
         )}
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="concurrent-users">Concurrent Users: {loadConfig.concurrentUsers}</Label>
-          </div>
-          <Slider
-            id="concurrent-users"
-            value={[loadConfig.concurrentUsers]}
-            min={1}
-            max={1000}
-            step={1}
-            onValueChange={(value: number[]) => updateConfig("concurrentUsers", value[0])}
+          <Label htmlFor="method">HTTP Method</Label>
+          <Select
+            value={loadConfig.method}
+            onValueChange={(value: string) => updateConfig("method", value)}
             disabled={isRunning}
-          />
+          >
+            <SelectTrigger id="method">
+              <SelectValue placeholder="Select method" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="GET">GET</SelectItem>
+              <SelectItem value="POST">POST</SelectItem>
+              <SelectItem value="PUT">PUT</SelectItem>
+              <SelectItem value="PATCH">PATCH</SelectItem>
+              <SelectItem value="DELETE">DELETE</SelectItem>
+              <SelectItem value="HEAD">HEAD</SelectItem>
+              <SelectItem value="OPTIONS">OPTIONS</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        {showDuration && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="duration">Test Duration: {loadConfig.duration}s</Label>
-            </div>
-            <Slider
-              id="duration"
-              value={[loadConfig.duration]}
-              min={5}
-              max={300}
-              step={1}
-              onValueChange={(value: number[]) => updateConfig("duration", value[0])}
-              disabled={isRunning}
-            />
-          </div>
-        )}
+        <Tabs defaultValue="headers" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="headers">Headers</TabsTrigger>
+            <TabsTrigger value="body" disabled={loadConfig.method === "GET"}>
+              Body
+            </TabsTrigger>
+          </TabsList>
 
-        {showRampUp && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="ramp-up">Ramp Up Period: {loadConfig.rampUp}s</Label>
+          <TabsContent value="headers" className="mt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="headers">Headers (JSON format)</Label>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <HelpCircle className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Headers Format Guide</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <p className="text-muted-foreground text-sm">
+                          Headers should be in JSON format. Common headers include:
+                        </p>
+                        <pre className="bg-muted rounded p-2 text-sm">
+                          {JSON.stringify(
+                            {
+                              "Content-Type": "application/json",
+                              Authorization: "Bearer your-token-here",
+                              Accept: "application/json",
+                              "User-Agent": "Load-Test-Client",
+                            },
+                            null,
+                            2,
+                          )}
+                        </pre>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <Textarea
+                  id="headers"
+                  value={headersString}
+                  onChange={(e) => updateHeaders(e.target.value)}
+                  placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'
+                  disabled={isRunning}
+                  className="h-48 font-mono text-sm"
+                />
+              </div>
             </div>
-            <Slider
-              id="ramp-up"
-              value={[loadConfig.rampUp]}
-              min={0}
-              max={60}
-              step={1}
-              onValueChange={(value: number[]) => updateConfig("rampUp", value[0])}
-              disabled={isRunning}
-            />
-          </div>
-        )}
+          </TabsContent>
 
-        {showThinkTime && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="think-time">Think Time: {loadConfig.thinkTime}ms</Label>
+          <TabsContent value="body" className="mt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="body">Request Body (JSON format)</Label>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <HelpCircle className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Body Format Guide</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <p className="text-muted-foreground text-sm">
+                          Request body should be in JSON format. Example structure:
+                        </p>
+                        <pre className="bg-muted rounded p-2 text-sm">
+                          {JSON.stringify(
+                            {
+                              key: "value",
+                              data: {
+                                field1: "value1",
+                                field2: "value2",
+                              },
+                            },
+                            null,
+                            2,
+                          )}
+                        </pre>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <Textarea
+                  id="body"
+                  value={bodyString}
+                  onChange={(e) => updateBody(e.target.value)}
+                  placeholder='{"key": "value", "data": {"field1": "value1"}}'
+                  disabled={isRunning || loadConfig.method === "GET"}
+                  className="h-48 font-mono text-sm"
+                />
+              </div>
             </div>
-            <Slider
-              id="think-time"
-              value={[loadConfig.thinkTime]}
-              min={0}
-              max={2000}
-              step={50}
-              onValueChange={(value: number[]) => updateConfig("thinkTime", value[0])}
-              disabled={isRunning}
-            />
-          </div>
-        )}
-
-        {showTestSuite && (
-          <div className="space-y-2">
-            <Label htmlFor="testSuite">Test Suite</Label>
-            <Select
-              disabled={isRunning}
-              value="default"
-              onValueChange={(value) => console.log(value)}
-            >
-              <SelectTrigger id="testSuite">
-                <SelectValue placeholder="Select test suite" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">Default API Tests</SelectItem>
-                <SelectItem value="advanced">Advanced API Tests</SelectItem>
-                <SelectItem value="custom">Custom Tests</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+          </TabsContent>
+        </Tabs>
 
         <div className="flex flex-col space-y-2">
           <Button

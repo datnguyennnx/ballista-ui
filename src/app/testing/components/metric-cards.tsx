@@ -13,12 +13,12 @@ interface MetricCardsProps {
 // Helper function to get status color based on thresholds
 function getStatusColor(value: number, thresholds: { warning?: number; critical?: number }) {
   if (thresholds.critical !== undefined && value >= thresholds.critical) {
-    return "text-chart-2";
+    return "text-chart-1";
   }
   if (thresholds.warning !== undefined && value >= thresholds.warning) {
     return "text-chart-3";
   }
-  return "text-chart-1";
+  return "text-chart-2";
 }
 
 export function MetricCards({ metrics, isRunning }: MetricCardsProps) {

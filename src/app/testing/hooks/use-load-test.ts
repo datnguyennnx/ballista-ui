@@ -11,7 +11,6 @@ const defaultConfig: LoadConfigType = {
   duration: 60,
   rampUp: 10,
   concurrentUsers: 100,
-  thinkTime: 200,
   headers: {},
   followRedirects: true,
 };

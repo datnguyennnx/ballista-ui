@@ -18,7 +18,6 @@ export interface LoadConfigType {
   duration: number;
   rampUp: number;
   concurrentUsers: number;
-  thinkTime: number;
   headers: Record<string, string>;
   body?: string;
   followRedirects: boolean;

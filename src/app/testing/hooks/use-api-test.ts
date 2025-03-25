@@ -10,7 +10,6 @@ const defaultConfig: LoadConfigType = {
   duration: 60,
   rampUp: 5,
   concurrentUsers: 10,
-  thinkTime: 100,
   headers: {
     "Content-Type": "application/json",
     Authorization: "Bearer {token}",
