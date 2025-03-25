@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MetricsChart } from "./metrics-chart";
 import { TimeSeriesPoint } from "../types/time-series";
+import { Button } from "@/components/ui/button";
+import { Maximize2 } from "lucide-react";
 
 // Define interfaces for time series data
 interface TimePoint {
@@ -29,6 +31,7 @@ export function MetricsDashboard({
   showConcurrentUsers = false,
 }: MetricsDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [fullscreenChart, setFullscreenChart] = useState<string | null>(null);
 
   // Convert from TimeSeriesData to array of TimeSeriesPoint
   const chartData = useMemo((): TimeSeriesPoint[] => {
@@ -69,7 +72,19 @@ export function MetricsDashboard({
     <div className="flex flex-col gap-4">
       <Card className="h-full w-full border">
         <CardHeader className="bg-card/50">
-          <CardTitle className="text-base">Response Time (ms)</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Response Time (ms)</CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() =>
+                setFullscreenChart(fullscreenChart === "responseTime" ? null : "responseTime")
+              }
+              className="h-8 w-8"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <MetricsChart
@@ -77,14 +92,29 @@ export function MetricsDashboard({
             dataKey="responseTime"
             label="Response Time (ms)"
             formatValue={(value) => `${value.toFixed(1)} ms`}
-            // thresholds={{ warning: 200, critical: 500 }}
+            isFullscreen={fullscreenChart === "responseTime"}
+            onFullscreenChange={(isFullscreen) =>
+              setFullscreenChart(isFullscreen ? "responseTime" : null)
+            }
           />
         </CardContent>
       </Card>
 
       <Card className="h-full w-full border">
         <CardHeader className="bg-card/50">
-          <CardTitle className="text-base">Throughput (rps)</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Throughput (rps)</CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() =>
+                setFullscreenChart(fullscreenChart === "throughput" ? null : "throughput")
+              }
+              className="h-8 w-8"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <MetricsChart
@@ -92,6 +122,10 @@ export function MetricsDashboard({
             dataKey="requestsPerSecond"
             label="Throughput (rps)"
             formatValue={(value) => `${value.toFixed(1)} rps`}
+            isFullscreen={fullscreenChart === "throughput"}
+            onFullscreenChange={(isFullscreen) =>
+              setFullscreenChart(isFullscreen ? "throughput" : null)
+            }
           />
         </CardContent>
       </Card>
@@ -99,7 +133,21 @@ export function MetricsDashboard({
       {showConcurrentUsers && (
         <Card className="h-full w-full border">
           <CardHeader className="bg-card/50">
-            <CardTitle className="text-base">Concurrent Users</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Concurrent Users</CardTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() =>
+                  setFullscreenChart(
+                    fullscreenChart === "concurrentUsers" ? null : "concurrentUsers",
+                  )
+                }
+                className="h-8 w-8"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <MetricsChart
@@ -107,6 +155,10 @@ export function MetricsDashboard({
               dataKey="concurrentUsers"
               label="Users"
               formatValue={(value) => `${Math.round(value)}`}
+              isFullscreen={fullscreenChart === "concurrentUsers"}
+              onFullscreenChange={(isFullscreen) =>
+                setFullscreenChart(isFullscreen ? "concurrentUsers" : null)
+              }
             />
           </CardContent>
         </Card>
@@ -114,7 +166,19 @@ export function MetricsDashboard({
 
       <Card className="h-full w-full border">
         <CardHeader className="bg-card/50">
-          <CardTitle className="text-base">Error Rate (%)</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Error Rate (%)</CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() =>
+                setFullscreenChart(fullscreenChart === "errorRate" ? null : "errorRate")
+              }
+              className="h-8 w-8"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <MetricsChart
@@ -122,7 +186,10 @@ export function MetricsDashboard({
             dataKey="errorRate"
             label="Error Rate (%)"
             formatValue={(value) => `${value.toFixed(2)}%`}
-            // thresholds={{ warning: 1, critical: 5 }}
+            isFullscreen={fullscreenChart === "errorRate"}
+            onFullscreenChange={(isFullscreen) =>
+              setFullscreenChart(isFullscreen ? "errorRate" : null)
+            }
           />
         </CardContent>
       </Card>
@@ -133,7 +200,19 @@ export function MetricsDashboard({
   const renderResponseTimeContent = () => (
     <Card className="h-full overflow-hidden border">
       <CardHeader className="bg-card/50">
-        <CardTitle>Response Time Analysis</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Response Time Analysis</CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              setFullscreenChart(fullscreenChart === "responseTime" ? null : "responseTime")
+            }
+            className="h-8 w-8"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <MetricsChart
@@ -141,7 +220,10 @@ export function MetricsDashboard({
           dataKey="responseTime"
           label="Response Time (ms)"
           formatValue={(value) => `${value.toFixed(1)} ms`}
-          // thresholds={{ warning: 200, critical: 500 }}
+          isFullscreen={fullscreenChart === "responseTime"}
+          onFullscreenChange={(isFullscreen) =>
+            setFullscreenChart(isFullscreen ? "responseTime" : null)
+          }
         />
       </CardContent>
     </Card>
@@ -151,7 +233,19 @@ export function MetricsDashboard({
   const renderThroughputContent = () => (
     <Card className="h-full overflow-hidden border">
       <CardHeader className="bg-card/50">
-        <CardTitle>Throughput Analysis</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Throughput Analysis</CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              setFullscreenChart(fullscreenChart === "throughput" ? null : "throughput")
+            }
+            className="h-8 w-8"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <MetricsChart
@@ -159,6 +253,10 @@ export function MetricsDashboard({
           dataKey="requestsPerSecond"
           label="Throughput (rps)"
           formatValue={(value) => `${value.toFixed(1)} rps`}
+          isFullscreen={fullscreenChart === "throughput"}
+          onFullscreenChange={(isFullscreen) =>
+            setFullscreenChart(isFullscreen ? "throughput" : null)
+          }
         />
       </CardContent>
     </Card>
@@ -168,7 +266,17 @@ export function MetricsDashboard({
   const renderErrorsContent = () => (
     <Card className="h-full overflow-hidden border">
       <CardHeader className="bg-card/50">
-        <CardTitle>Error Rate Analysis</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Error Rate Analysis</CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setFullscreenChart(fullscreenChart === "errorRate" ? null : "errorRate")}
+            className="h-8 w-8"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <MetricsChart
@@ -177,6 +285,10 @@ export function MetricsDashboard({
           label="Error Rate (%)"
           formatValue={(value) => `${value.toFixed(2)}%`}
           thresholds={{ warning: 1, critical: 5 }}
+          isFullscreen={fullscreenChart === "errorRate"}
+          onFullscreenChange={(isFullscreen) =>
+            setFullscreenChart(isFullscreen ? "errorRate" : null)
+          }
         />
       </CardContent>
     </Card>

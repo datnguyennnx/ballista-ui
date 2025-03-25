@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { AlertCircleIcon, CheckCircleIcon, WifiIcon, WifiOffIcon, ClockIcon } from "lucide-react";
 import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 
 interface MetricsChartProps {
   data: TimeSeriesPoint[];
@@ -30,6 +31,8 @@ interface MetricsChartProps {
     warning?: number;
     critical?: number;
   };
+  isFullscreen?: boolean;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
 const chartConfig = {
@@ -48,6 +51,8 @@ export function MetricsChart({
   refreshInterval = 1000,
   showMiniStats = true,
   thresholds,
+  isFullscreen = false,
+  onFullscreenChange,
 }: MetricsChartProps) {
   const [chartData, setChartData] = useState<TimeSeriesPoint[]>([]);
   const [isHovering, setIsHovering] = useState(false);
@@ -311,138 +316,175 @@ export function MetricsChart({
     return [Math.max(0, minVal - padding), maxVal + padding];
   }, [displayData, dataKey]);
 
-  return (
-    <div className="flex h-full flex-col rounded-md">
-      <div className="mb-1 flex items-baseline justify-between">
-        <h3 className="text-lg font-medium">{label}</h3>
-      </div>
+  const handleFullscreenToggle = () => {
+    if (onFullscreenChange) {
+      onFullscreenChange(!isFullscreen);
+    }
+  };
 
-      {showMiniStats && (
-        <div className="mb-3 flex gap-4 text-sm">
-          <div>
-            <span className="text-neutral-500">Min: </span>
-            <span className="font-medium">{formatValue(min)}</span>
-          </div>
-          <div>
-            <span className="text-neutral-500">Avg: </span>
-            <span className="font-medium">{formatValue(avg)}</span>
-          </div>
-          <div>
-            <span className="text-neutral-500">Max: </span>
-            <span className="font-medium">{formatValue(max)}</span>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {getConnectivityIndicator()}
-            {getStatusIndicator()}
-          </div>
-        </div>
-      )}
+  const renderChart = () => (
+    <div
+      className="relative flex-1"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <AreaChart data={displayData} accessibilityLayer>
+          <CartesianGrid vertical={false} />
+          <XAxis
+            dataKey="timestamp"
+            tickFormatter={formatTimestamp}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+            minTickGap={15}
+            stroke="var(--border)"
+            opacity={0.7}
+            height={35}
+          />
+          <YAxis
+            domain={dynamicDomain}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+            tickFormatter={(val) => formatValue(val)}
+            width={40}
+            stroke="var(--border)"
+            opacity={0.7}
+            padding={{ top: 20, bottom: 20 }}
+          />
 
-      <div
-        className="relative flex-1"
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <AreaChart data={displayData} accessibilityLayer>
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="timestamp"
-              tickFormatter={formatTimestamp}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-              minTickGap={15}
-              stroke="var(--border)"
-              opacity={0.7}
-              height={35}
+          {/* Add threshold areas */}
+          {thresholds?.warning && thresholds?.critical && (
+            <ReferenceArea
+              y1={thresholds.warning}
+              y2={thresholds.critical}
+              fill="var(--chart-4)"
+              fillOpacity={0.1}
             />
-            <YAxis
-              domain={dynamicDomain}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-              tickFormatter={(val) => formatValue(val)}
-              width={40}
-              stroke="var(--border)"
-              opacity={0.7}
-              padding={{ top: 20, bottom: 20 }}
+          )}
+
+          {thresholds?.critical && (
+            <ReferenceArea
+              y1={thresholds.critical}
+              y2={Infinity}
+              fill="var(--chart-5)"
+              fillOpacity={0.1}
             />
+          )}
 
-            {/* Add threshold areas */}
-            {thresholds?.warning && thresholds?.critical && (
-              <ReferenceArea
-                y1={thresholds.warning}
-                y2={thresholds.critical}
-                fill="var(--chart-4)"
-                fillOpacity={0.1}
-              />
-            )}
-
-            {thresholds?.critical && (
-              <ReferenceArea
-                y1={thresholds.critical}
-                y2={Infinity}
-                fill="var(--chart-5)"
-                fillOpacity={0.1}
-              />
-            )}
-
-            {/* Add threshold lines */}
-            {thresholds?.warning && (
-              <ReferenceLine
-                y={thresholds.warning}
-                stroke="var(--chart-4)"
-                strokeDasharray="3 3"
-                strokeOpacity={0.8}
-                label={{
-                  value: "Warning",
-                  position: "insideBottomRight",
-                  fill: "var(--chart-4)",
-                  fontSize: 10,
-                }}
-              />
-            )}
-
-            {thresholds?.critical && (
-              <ReferenceLine
-                y={thresholds.critical}
-                stroke="var(--chart-5)"
-                strokeDasharray="3 3"
-                strokeOpacity={0.8}
-                label={{
-                  value: "Critical",
-                  position: "insideBottomRight",
-                  fill: "var(--chart-5)",
-                  fontSize: 10,
-                }}
-              />
-            )}
-
-            {/* Add latest data point marker */}
-            {chartData.length > 0 && !isHovering && (
-              <ReferenceDot
-                x={chartData[chartData.length - 1].timestamp}
-                y={Number(chartData[chartData.length - 1][dataKey])}
-                r={4}
-                fill={color}
-                stroke="var(--background)"
-                strokeWidth={2}
-                isFront={true}
-              />
-            )}
-
-            <ChartTooltip cursor={false} content={<CustomTooltip />} />
-
-            <Area
-              type="monotone"
-              dataKey={dataKey as string}
-              fill="var(--color-desktop)"
-              fillOpacity={0.3}
-              stroke="var(--color-desktop)"
-              animationDuration={0}
-              isAnimationActive={false}
-              connectNulls={true}
+          {/* Add threshold lines */}
+          {thresholds?.warning && (
+            <ReferenceLine
+              y={thresholds.warning}
+              stroke="var(--chart-4)"
+              strokeDasharray="3 3"
+              strokeOpacity={0.8}
+              label={{
+                value: "Warning",
+                position: "insideBottomRight",
+                fill: "var(--chart-4)",
+                fontSize: 10,
+              }}
             />
-          </AreaChart>
-        </ChartContainer>
-      </div>
+          )}
+
+          {thresholds?.critical && (
+            <ReferenceLine
+              y={thresholds.critical}
+              stroke="var(--chart-5)"
+              strokeDasharray="3 3"
+              strokeOpacity={0.8}
+              label={{
+                value: "Critical",
+                position: "insideBottomRight",
+                fill: "var(--chart-5)",
+                fontSize: 10,
+              }}
+            />
+          )}
+
+          {/* Add latest data point marker */}
+          {chartData.length > 0 && !isHovering && (
+            <ReferenceDot
+              x={chartData[chartData.length - 1].timestamp}
+              y={Number(chartData[chartData.length - 1][dataKey])}
+              r={4}
+              fill={color}
+              stroke="var(--background)"
+              strokeWidth={2}
+              isFront={true}
+            />
+          )}
+
+          <ChartTooltip cursor={false} content={<CustomTooltip />} />
+
+          <Area
+            type="monotone"
+            dataKey={dataKey as string}
+            fill="var(--color-desktop)"
+            fillOpacity={0.3}
+            stroke="var(--color-desktop)"
+            animationDuration={0}
+            isAnimationActive={false}
+            connectNulls={true}
+          />
+        </AreaChart>
+      </ChartContainer>
     </div>
+  );
+
+  return (
+    <>
+      <div className="flex h-full flex-col rounded-md">
+        <div className="mb-1 flex items-baseline justify-between">
+          <h3 className="text-lg font-medium">{label}</h3>
+        </div>
+
+        {showMiniStats && (
+          <div className="mb-3 flex gap-4 text-sm">
+            <div>
+              <span className="text-neutral-500">Min: </span>
+              <span className="font-medium">{formatValue(min)}</span>
+            </div>
+            <div>
+              <span className="text-neutral-500">Avg: </span>
+              <span className="font-medium">{formatValue(avg)}</span>
+            </div>
+            <div>
+              <span className="text-neutral-500">Max: </span>
+              <span className="font-medium">{formatValue(max)}</span>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              {getConnectivityIndicator()}
+              {getStatusIndicator()}
+            </div>
+          </div>
+        )}
+
+        {renderChart()}
+      </div>
+
+      <Dialog open={isFullscreen} onOpenChange={handleFullscreenToggle}>
+        <DialogContent className="h-fit max-w-[90vw] min-w-fit scale-x-200 scale-y-200">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl font-semibold">{label}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col">
+            <div className="mb-4 flex gap-4 text-sm">
+              <div>
+                <span className="text-neutral-500">Min: </span>
+                <span className="font-medium">{formatValue(min)}</span>
+              </div>
+              <div>
+                <span className="text-neutral-500">Avg: </span>
+                <span className="font-medium">{formatValue(avg)}</span>
+              </div>
+              <div>
+                <span className="text-neutral-500">Max: </span>
+                <span className="font-medium">{formatValue(max)}</span>
+              </div>
+            </div>
+            <div className="min-h-fit flex-1">{renderChart()}</div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
