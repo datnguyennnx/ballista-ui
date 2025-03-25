@@ -6,7 +6,9 @@ const cooldownTime = 0.5;
 
 // Function to generate a random color
 const getRandomColor = () => {
-  return `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
+  return `#${Math.floor(Math.random() * 16777215)
+    .toString(16)
+    .padStart(6, "0")}`;
 };
 
 // Function to generate a random gradient
@@ -18,7 +20,11 @@ const getRandomGradient = (numColors = 2) => {
   return colors;
 };
 
-const useMorphingText = (texts: string[], randomizeColors: boolean = false, initialGradientColors: string[] = ["#ff4080", "#7928ca"]) => {
+const useMorphingText = (
+  texts: string[],
+  randomizeColors: boolean = false,
+  initialGradientColors: string[] = ["var(--cherry-red)", "var(--alpine-oat)"],
+) => {
   const [gradientColors, setGradientColors] = useState(initialGradientColors);
   const textIndexRef = useRef(0);
   const morphRef = useRef(0);
@@ -45,7 +51,7 @@ const useMorphingText = (texts: string[], randomizeColors: boolean = false, init
         current.style.filter = `blur(${blurAmount}px)`;
         current.style.opacity = `${Math.pow(adjustedFraction, 0.4) * 100}%`;
         current.textContent = texts[(textIndexRef.current + 1) % texts.length];
-        
+
         // Change colors when transitioning to a new text if randomizeColors is true
         if (fraction === 1 && randomizeColors) {
           setGradientColors(getRandomGradient());
@@ -70,7 +76,7 @@ const useMorphingText = (texts: string[], randomizeColors: boolean = false, init
 
     if (fraction === 1) {
       textIndexRef.current++;
-      
+
       // Change colors when transitioning to a new text if randomizeColors is true
       if (randomizeColors) {
         setGradientColors(getRandomGradient());
@@ -93,12 +99,12 @@ const useMorphingText = (texts: string[], randomizeColors: boolean = false, init
     if (textRef.current) {
       textRef.current.textContent = texts[textIndexRef.current % texts.length];
     }
-    
+
     // Initialize with random colors if randomizeColors is true
     if (randomizeColors) {
       setGradientColors(getRandomGradient());
     }
-    
+
     let animationFrameId: number;
 
     const animate = () => {
@@ -132,20 +138,22 @@ interface MorphingTextProps {
   enableGradient?: boolean; // New prop to toggle gradient
 }
 
-const Texts: React.FC<Pick<MorphingTextProps, "texts" | "gradientColors" | "gradientDirection" | "enableGradient">> = ({ 
-  texts, 
-  gradientColors = ["var(--morphingtext)", "var(--morphingtext)"], 
+const Texts: React.FC<
+  Pick<MorphingTextProps, "texts" | "gradientColors" | "gradientDirection" | "enableGradient">
+> = ({
+  texts,
+  gradientColors = ["var(--cherry-red)", "var(--alpine-oat)"],
   gradientDirection = "to right",
-  enableGradient = true
+  enableGradient = true,
 }) => {
   const { textRef } = useMorphingText(texts, false, gradientColors);
 
   return (
     <span
-      className="inline-block whitespace-nowrap bg-clip-text text-transparent font-extrabold"
+      className="inline-block bg-clip-text font-extrabold whitespace-nowrap text-transparent"
       style={{
-        backgroundColor: !enableGradient ? "var(--morphingtext)" : undefined,
-        backgroundImage: enableGradient 
+        backgroundColor: !enableGradient ? "var(--transfer-1)" : undefined,
+        backgroundImage: enableGradient
           ? `linear-gradient(${gradientDirection}, ${gradientColors.join(", ")})`
           : undefined,
       }}
@@ -155,45 +163,41 @@ const Texts: React.FC<Pick<MorphingTextProps, "texts" | "gradientColors" | "grad
 };
 
 const SvgFilters: React.FC = () => (
-    <svg
-      id="filters"
-      className="fixed h-0 w-0"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <defs>
-        <filter id="threshold">
-          <feColorMatrix
-            in="SourceGraphic"
-            type="matrix"
-            values="1 0 0 0 0
+  <svg id="filters" className="fixed h-0 w-0" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <filter id="threshold">
+        <feColorMatrix
+          in="SourceGraphic"
+          type="matrix"
+          values="1 0 0 0 0
                     0 1 0 0 0
                     0 0 1 0 0
                     0 0 0 255 -140"
-          />
-        </filter>
-      </defs>
-    </svg>
-  );
+        />
+      </filter>
+    </defs>
+  </svg>
+);
 
-export const MorphingText: React.FC<MorphingTextProps> = ({ 
-  texts, 
-  className, 
+export const MorphingText: React.FC<MorphingTextProps> = ({
+  texts,
+  className,
   inline = false,
-  gradientColors = ["var(--morphingtext)", "var(--morphingtext)"],
+  gradientColors = ["var(--cherry-red)", "var(--alpine-oat)"],
   gradientDirection = "to right",
-  enableGradient = false
+  enableGradient = false,
 }) => (
   <span
     className={cn(
       "relative inline-block",
-      inline ? "" : "h-fit mx-2",
+      inline ? "" : "mx-2 h-fit",
       "[filter:url(#threshold)_blur(0.6px)]",
       className,
     )}
   >
-    <Texts 
-      texts={texts} 
-      gradientColors={gradientColors} 
+    <Texts
+      texts={texts}
+      gradientColors={gradientColors}
       gradientDirection={gradientDirection}
       enableGradient={enableGradient}
     />
