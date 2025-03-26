@@ -86,7 +86,7 @@ const Notification = ({ name, description, icon, color, time }: Item) => {
   return (
     <figure
       className={cn(
-        "relative mx-auto min-h-fit w-full max-w-[600px] cursor-pointer overflow-hidden rounded-2xl border border-neutral-200 p-6",
+        "relative mx-auto min-h-fit w-full max-w-[600px] transform-gpu cursor-pointer overflow-hidden rounded-2xl border border-neutral-200 p-6",
         // animation styles
         "transition-all duration-300 ease-in-out hover:scale-[102%] hover:shadow-lg",
         // light styles
