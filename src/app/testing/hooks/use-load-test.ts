@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TestType, TestStatus } from "@/types/index";
 import { LoadConfigType } from "../types/test-types";
 import { useWebSocket } from "./use-websocket";
 import { useFakeTest } from "./use-fake-test";
 import { wsClient } from "@/lib/websocket/index";
 import { createTimeSeriesPoint } from "../types/time-series";
+import { mapTestMetricsToTimeSeriesPoint, mapTimeSeriesData } from "../utils/data-mappers";
 
 const defaultConfig: LoadConfigType = {
   target_url: "https://example.com",
@@ -30,7 +31,6 @@ export function useLoadTest() {
     activities,
     testState: loadTest,
     timeSeriesData,
-    chartData,
     connectWebSocket,
     setTestState,
     setActivities,
@@ -97,11 +97,19 @@ export function useLoadTest() {
     }
   };
 
+  // Update time series data when metrics change
+  useEffect(() => {
+    if (loadTest.metrics) {
+      const timeSeriesPoint = mapTestMetricsToTimeSeriesPoint(loadTest.metrics);
+      setTimeSeriesData((prev) => [...prev, timeSeriesPoint]);
+    }
+  }, [loadTest.metrics, setTimeSeriesData]);
+
   return {
     loadTest,
     activities,
     timeSeriesData,
-    chartData,
+    chartData: mapTimeSeriesData(timeSeriesData),
     isFakeTestRunning,
     loadConfig,
     isConnected,

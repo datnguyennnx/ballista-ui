@@ -54,7 +54,7 @@ export function ResponseTimeVisualizer({
         {/* Current value marker */}
         <div
           className={cn(
-            "border-background absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-sm transition-all duration-300",
+            "border-background absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 shadow-sm transition-all duration-100",
             isGood ? "bg-chart-2" : isWarning ? "bg-chart-1" : "bg-chart-5",
           )}
           style={{ left: `${valuePosition}%` }}

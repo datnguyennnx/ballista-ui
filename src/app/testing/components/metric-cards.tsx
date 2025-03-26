@@ -64,7 +64,7 @@ export function MetricCards({ metrics, isRunning }: MetricCardsProps) {
             </p>
             <div className="bg-muted/20 h-2 w-full overflow-hidden rounded-full">
               <div
-                className="bg-chart-2 h-full rounded-full transition-all duration-500"
+                className="bg-chart-2 h-full rounded-full transition-all duration-100"
                 style={{ width: `${completionPercentage}%` }}
               />
             </div>

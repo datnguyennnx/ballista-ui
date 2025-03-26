@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   AreaChart,
   Area,
@@ -14,9 +14,8 @@ import {
 import { format } from "date-fns";
 import { TimeSeriesPoint } from "../types/time-series";
 import { Card } from "@/components/ui/card";
-import { AlertCircleIcon, CheckCircleIcon, WifiIcon, WifiOffIcon, ClockIcon } from "lucide-react";
+import { ClockIcon } from "lucide-react";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 
 interface MetricsChartProps {
@@ -58,8 +57,6 @@ export function MetricsChart({
   const [chartData, setChartData] = useState<TimeSeriesPoint[]>([]);
   const [isHovering, setIsHovering] = useState(false);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
-  const [latestValue, setLatestValue] = useState<number | null>(null);
   const [min, setMin] = useState<number>(0);
   const [max, setMax] = useState<number>(0);
   const [avg, setAvg] = useState<number>(0);
@@ -77,8 +74,6 @@ export function MetricsChart({
       setMin(Math.min(...values));
       setMax(Math.max(...values));
       setAvg(values.reduce((a, b) => a + b, 0) / values.length);
-      setLatestValue(values[values.length - 1]);
-      setLastUpdateTime(Date.now());
     }
   }, [data, dataKey]);
 
@@ -88,14 +83,6 @@ export function MetricsChart({
     if (refreshTimerRef.current) {
       clearInterval(refreshTimerRef.current);
       refreshTimerRef.current = null;
-    }
-
-    // Only set a timer if we have data and are not hovering
-    if (refreshInterval && refreshInterval > 0 && !isHovering && chartData.length > 0) {
-      refreshTimerRef.current = setInterval(() => {
-        // Trigger a re-render without changing the state
-        setLastUpdateTime(Date.now());
-      }, refreshInterval);
     }
 
     return () => {
@@ -111,15 +98,6 @@ export function MetricsChart({
     return format(new Date(timestamp), "HH:mm:ss");
   };
 
-  // Format relative time since last update
-  const formatLastUpdateTime = useCallback(() => {
-    const seconds = Math.floor((Date.now() - lastUpdateTime) / 1000);
-    if (seconds < 5) return "just now";
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}m ago`;
-  }, [lastUpdateTime]);
-
   // Create empty data if no data is provided to ensure chart and legend always show
   const displayData = useMemo(() => {
     return chartData.length > 0
@@ -133,79 +111,6 @@ export function MetricsChart({
           },
         ];
   }, [chartData]);
-
-  // Get status indicator
-  const getStatusIndicator = () => {
-    if (!thresholds || chartData.length === 0) {
-      return (
-        <Badge variant="outline" className="badge-disconnected flex items-center gap-1.5">
-          <WifiOffIcon className="h-3 w-3" />
-          <span>No data</span>
-        </Badge>
-      );
-    }
-
-    const currentValue = latestValue ?? 0;
-
-    if (thresholds.critical !== undefined && currentValue >= thresholds.critical) {
-      return (
-        <Badge className="badge-critical flex items-center gap-1.5">
-          <AlertCircleIcon className="h-3 w-3" />
-          <span>Critical</span>
-        </Badge>
-      );
-    }
-
-    if (thresholds.warning !== undefined && currentValue >= thresholds.warning) {
-      return (
-        <Badge className="badge-warning flex items-center gap-1.5">
-          <AlertCircleIcon className="h-3 w-3" />
-          <span>Warning</span>
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge className="badge-good flex items-center gap-1.5">
-        <CheckCircleIcon className="h-3 w-3" />
-        <span>Good</span>
-      </Badge>
-    );
-  };
-
-  // Check if data is stale (no updates in the last 10 seconds)
-  const isDataStale = Date.now() - lastUpdateTime > 10000;
-
-  // Get connectivity indicator
-  const getConnectivityIndicator = () => {
-    if (chartData.length === 0) {
-      return (
-        <Badge className="badge-disconnected flex items-center gap-1.5">
-          <WifiOffIcon className="h-3 w-3" />
-          <span>Disconnected</span>
-        </Badge>
-      );
-    }
-
-    if (isDataStale) {
-      return (
-        <Badge className="badge-stale flex items-center gap-1.5">
-          <WifiOffIcon className="h-3 w-3" />
-          <span>Stale ({formatLastUpdateTime()})</span>
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge className="badge-live flex items-center gap-1.5">
-        <div className="relative">
-          <WifiIcon className="h-3 w-3" />
-          <span className="bg-chart-3 absolute -top-1 -right-1 h-1.5 w-1.5 animate-ping rounded-full"></span>
-        </div>
-        <span>Live</span>
-      </Badge>
-    );
-  };
 
   // Custom tooltip component for better performance
   const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
@@ -399,10 +304,6 @@ export function MetricsChart({
             <div>
               <span className="text-neutral-500">Max: </span>
               <span className="font-medium">{formatValue(max)}</span>
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              {getStatusIndicator()}
-              {getConnectivityIndicator()}
             </div>
           </div>
         )}
