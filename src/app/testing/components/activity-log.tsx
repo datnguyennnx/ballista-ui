@@ -15,48 +15,34 @@ interface ActivityLogProps {
 }
 
 export function ActivityLog({ activities }: ActivityLogProps) {
-  // Check if we're using the new Activity format or legacy string format
-  const isLegacyFormat = activities.length > 0 && typeof activities[0] === "string";
-
-  // Function to parse legacy activity strings into structured format
-  const parseActivity = (activity: string): Activity => {
-    const type = determineActivityType(activity);
-    return {
-      id: Math.random().toString(36).substring(2),
-      message: activity,
-      type,
-    };
-  };
-
-  // Determine activity type based on message content
-  const determineActivityType = (message: string): Activity["type"] => {
-    const lowerMessage = message.toLowerCase();
-
-    if (lowerMessage.includes("failed") || lowerMessage.includes("error")) {
-      return "error";
-    }
-    if (
-      lowerMessage.includes("started") ||
-      lowerMessage.includes("completed") ||
-      lowerMessage.includes("success")
-    ) {
-      return "success";
-    }
-    if (lowerMessage.includes("preparing") || lowerMessage.includes("sending")) {
-      return "loading";
-    }
-    if (lowerMessage.includes("request") || lowerMessage.includes("http")) {
-      return "network";
-    }
-    return undefined;
-  };
-
   // Convert to consistent format - memoized to prevent recreating on every render
   const formattedActivities = useMemo(() => {
-    return isLegacyFormat
-      ? (activities as string[]).map(parseActivity)
-      : (activities as Activity[]);
-  }, [activities, isLegacyFormat]);
+    // Determine activity type based on message content
+    const determineActivityType = (message: string): Activity["type"] => {
+      const lowerMessage = message.toLowerCase();
+      if (lowerMessage.includes("failed") || lowerMessage.includes("error")) return "error";
+      if (
+        lowerMessage.includes("started") ||
+        lowerMessage.includes("completed") ||
+        lowerMessage.includes("success")
+      )
+        return "success";
+      if (lowerMessage.includes("preparing") || lowerMessage.includes("sending")) return "loading";
+      if (lowerMessage.includes("request") || lowerMessage.includes("http")) return "network";
+      return undefined;
+    };
+
+    // Function to parse legacy activity strings into structured format
+    const parseActivity = (activity: string): Activity => ({
+      id: Math.random().toString(36).substring(2),
+      message: activity,
+      type: determineActivityType(activity),
+    });
+
+    return activities.map((activity) =>
+      typeof activity === "string" ? parseActivity(activity) : activity,
+    );
+  }, [activities]);
 
   // Get icon based on activity type
   const getActivityIcon = (type?: Activity["type"]) => {

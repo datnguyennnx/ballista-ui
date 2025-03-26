@@ -8,7 +8,6 @@ import { TestStatus } from "../components/test-status";
 import { MetricsDashboard } from "../components/metrics-dashboard";
 import { TestConfig } from "../components/test-config";
 import { ActivityLog } from "../components/activity-log";
-import { mapTimeSeriesData } from "../utils/data-mappers";
 
 export default function LoadTestPage() {
   const {
@@ -26,9 +25,6 @@ export default function LoadTestPage() {
   const { progress, status, metrics } = loadTest;
   const isRunning = status === "running" || isFakeTestRunning;
 
-  // Convert time series data to the format expected by MetricsDashboard
-  const formattedTimeSeriesData = mapTimeSeriesData(timeSeriesData);
-
   return (
     <PageLayout
       title="Load Testing"
@@ -37,7 +33,7 @@ export default function LoadTestPage() {
       summaryArea={metrics && <MetricCards metrics={metrics} isRunning={isRunning} />}
       mainContent={
         <div>
-          <MetricsDashboard timeSeriesData={formattedTimeSeriesData} />
+          <MetricsDashboard timeSeriesData={timeSeriesData} showConcurrentUsers={true} />
         </div>
       }
       sidebarContent={
@@ -61,7 +57,7 @@ export default function LoadTestPage() {
           icon: <BarChart3 className="h-4 w-4" />,
           content: (
             <div>
-              <MetricsDashboard timeSeriesData={formattedTimeSeriesData} />
+              <MetricsDashboard timeSeriesData={timeSeriesData} showConcurrentUsers={true} />
             </div>
           ),
         },

@@ -8,9 +8,9 @@ export function generateMockDataPoint(): TimeSeriesPoint {
   const now = Date.now();
   return {
     timestamp: now,
-    responseTime: Math.floor(Math.random() * 100) + 50, // 50-150ms
-    requestsPerSecond: Math.floor(Math.random() * 50) + 10, // 10-60 req/s
-    errorRate: Math.random() * 2, // 0-2%
+    requests_per_second: Math.floor(Math.random() * 50) + 10, // 10-60 req/s
+    average_response_time: Math.floor(Math.random() * 100) + 50, // 50-150ms
+    error_rate: Math.random() * 2, // 0-2%
   };
 }
 
@@ -22,7 +22,7 @@ export function generateFakeTestData(
   testType: "load" | "stress" | "api" = "load",
 ): TimeSeriesPoint[] {
   // Starting values for our metrics (adjusted per test type)
-  let responseTime = testType === "api" ? 40 : testType === "stress" ? 90 : 70;
+  let averageResponseTime = testType === "api" ? 40 : testType === "stress" ? 90 : 70;
   let requestsPerSecond = testType === "api" ? 10 : testType === "stress" ? 30 : 20;
   let errorRate = testType === "api" ? 0.2 : testType === "stress" ? 0.8 : 0.5;
 
@@ -43,9 +43,9 @@ export function generateFakeTestData(
       // Stress test - metrics worsen dramatically as progress increases
       const loadFactor = progress < 0.7 ? progress : progress * 2; // Increase load after 70%
 
-      responseTime = Math.max(
+      averageResponseTime = Math.max(
         20,
-        Math.min(500, responseTime + (Math.random() * 15 - 3) + loadFactor * 10),
+        Math.min(500, averageResponseTime + (Math.random() * 15 - 3) + loadFactor * 10),
       );
       requestsPerSecond = Math.max(5, Math.min(60, requestsPerSecond + (Math.random() * 6 - 3)));
       errorRate =
@@ -54,7 +54,10 @@ export function generateFakeTestData(
           : Math.max(0, errorRate + (Math.random() * 2 - 1));
     } else if (testType === "api") {
       // API test - more consistent metrics
-      responseTime = Math.max(20, Math.min(200, responseTime + (Math.random() * 8 - 4)));
+      averageResponseTime = Math.max(
+        20,
+        Math.min(200, averageResponseTime + (Math.random() * 8 - 4)),
+      );
       requestsPerSecond = Math.max(5, Math.min(30, requestsPerSecond + (Math.random() * 4 - 2)));
       errorRate =
         progress > 0.8
@@ -62,7 +65,10 @@ export function generateFakeTestData(
           : Math.max(0, errorRate + (Math.random() * 0.4 - 0.3));
     } else {
       // Load test - gradual metric changes
-      responseTime = Math.max(20, Math.min(300, responseTime + (Math.random() * 10 - 3)));
+      averageResponseTime = Math.max(
+        20,
+        Math.min(300, averageResponseTime + (Math.random() * 10 - 3)),
+      );
       requestsPerSecond = Math.max(5, Math.min(60, requestsPerSecond + (Math.random() * 6 - 3)));
 
       // Occasional error spikes for load test
@@ -75,9 +81,9 @@ export function generateFakeTestData(
 
     return {
       timestamp,
-      responseTime,
-      requestsPerSecond,
-      errorRate,
+      requests_per_second: requestsPerSecond,
+      average_response_time: averageResponseTime,
+      error_rate: errorRate,
     };
   });
 }
@@ -117,7 +123,7 @@ export function createTestMetrics(
       400: Math.floor(completedRequests * 0.01),
       401: Math.floor(completedRequests * 0.005),
       404: Math.floor(completedRequests * 0.005),
-      500: Math.floor(completedRequests * 0.05 * dataPoint.errorRate),
+      500: Math.floor(completedRequests * 0.05 * dataPoint.error_rate),
     };
   } else {
     // Load test - mostly successful responses
@@ -131,12 +137,11 @@ export function createTestMetrics(
   return {
     requests_completed: completedRequests,
     total_requests: totalRequests,
-    avg_response_time: dataPoint.responseTime,
-    min_response_time: dataPoint.responseTime * 0.5,
-    max_response_time: dataPoint.responseTime * 2,
-    median_response_time: dataPoint.responseTime * 0.8,
-    p95_response_time: dataPoint.responseTime * 1.5,
+    average_response_time: dataPoint.average_response_time,
+    min_response_time: dataPoint.average_response_time * 0.5,
+    max_response_time: dataPoint.average_response_time * 2,
+    error_rate: dataPoint.error_rate,
+    requests_per_second: dataPoint.requests_per_second,
     status_codes: statusCodes,
-    errors: Math.floor(dataPoint.errorRate * 10),
   };
 }

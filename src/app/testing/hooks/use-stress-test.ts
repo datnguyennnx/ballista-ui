@@ -3,7 +3,7 @@ import { TestType } from "@/types/index";
 import { LoadConfigType } from "../types/test-types";
 import { useWebSocket } from "./use-websocket";
 import { useFakeTest } from "./use-fake-test";
-import { wsClient } from "@/lib/websocket";
+import { wsClient } from "@/lib/websocket/index";
 
 const defaultConfig: LoadConfigType = {
   target_url: "https://example.com",
@@ -50,10 +50,9 @@ export function useStressTest() {
       // Initialize with a starting point at [0, 0] to ensure chart begins at origin
       const startPoint = {
         timestamp: Date.now(),
-        requestsPerSecond: 0,
-        responseTime: 0,
-        errorRate: 0,
-        concurrentUsers: 0,
+        requests_per_second: 0,
+        average_response_time: 0,
+        error_rate: 0,
       };
       setTimeSeriesData([startPoint]);
 

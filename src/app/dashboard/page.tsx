@@ -42,6 +42,7 @@ export default function TestingDashboard() {
       color: "bg-green-500/10",
       textColor: "text-green-500",
       feature: "Verify API contract compliance",
+      comingSoon: true,
     },
     {
       title: "Real-time Performance",

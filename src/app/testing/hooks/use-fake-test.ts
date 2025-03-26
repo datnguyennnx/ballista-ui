@@ -50,16 +50,18 @@ export function useFakeTest(testType: "load" | "stress") {
         const finalMetrics = {
           requests_completed: testType === "load" ? 1000 : 10000,
           total_requests: testType === "load" ? 1000 : 10000,
-          avg_response_time: fakeData[totalPoints - 1].responseTime,
-          min_response_time: fakeData[totalPoints - 1].responseTime * 0.5,
-          max_response_time: fakeData[totalPoints - 1].responseTime * 2,
-          median_response_time: fakeData[totalPoints - 1].responseTime * 0.8,
-          p95_response_time: fakeData[totalPoints - 1].responseTime * 1.5,
+          average_response_time: fakeData[totalPoints - 1].average_response_time,
+          min_response_time: fakeData[totalPoints - 1].average_response_time * 0.5,
+          max_response_time: fakeData[totalPoints - 1].average_response_time * 2,
+          median_response_time: fakeData[totalPoints - 1].average_response_time * 0.8,
+          p95_response_time: fakeData[totalPoints - 1].average_response_time * 1.5,
           status_codes:
             testType === "load"
               ? { 200: 980, 404: 10, 500: 10 }
               : { 200: 9800, 404: 100, 500: 100 },
-          errors: Math.floor(fakeData[totalPoints - 1].errorRate * 10),
+          errors: Math.floor(fakeData[totalPoints - 1].error_rate * 10),
+          error_rate: fakeData[totalPoints - 1].error_rate * 100,
+          requests_per_second: fakeData[totalPoints - 1].requests_per_second,
         };
 
         setTestState({
@@ -72,7 +74,7 @@ export function useFakeTest(testType: "load" | "stress") {
         setActivities((prev: string[]) => [
           `${testType.charAt(0).toUpperCase() + testType.slice(1)} Test: 100% - Completed`,
           `Results: ${finalMetrics.requests_completed} requests, ${finalMetrics.errors} errors`,
-          `Avg Response Time: ${Math.round(finalMetrics.avg_response_time)}ms`,
+          `Avg Response Time: ${Math.round(finalMetrics.average_response_time)}ms`,
           `Success Rate: ${(((finalMetrics.requests_completed - finalMetrics.errors) / finalMetrics.requests_completed) * 100).toFixed(1)}%`,
           ...prev.slice(0, 1),
         ]);
@@ -99,9 +101,9 @@ export function useFakeTest(testType: "load" | "stress") {
 
       // Add detailed progress updates at key milestones
       if (progress % 25 === 0 && progress > 0) {
-        const currentRPS = Math.round(dataPoint.requestsPerSecond);
-        const currentRT = Math.round(dataPoint.responseTime);
-        const currentErrors = Math.round(dataPoint.errorRate * 100);
+        const currentRPS = Math.round(dataPoint.requests_per_second);
+        const currentRT = Math.round(dataPoint.average_response_time);
+        const currentErrors = Math.round(dataPoint.error_rate * 100);
 
         setActivities((prev: string[]) => [
           `${testType.charAt(0).toUpperCase() + testType.slice(1)} Test: ${progress}% - Running`,

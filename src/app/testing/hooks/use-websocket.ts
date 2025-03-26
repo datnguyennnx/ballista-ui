@@ -1,38 +1,72 @@
 import { useState, useEffect, useCallback } from "react";
-import { wsClient } from "@/lib/websocket";
+import { wsClient } from "@/lib/websocket/index";
 import { TestType, TestStatus } from "@/types/index";
-import { TimeSeriesPoint } from "../types/time-series";
+import { TimeSeriesPoint, convertToChartData, ChartData } from "../types/time-series";
 import { TestState } from "../types/test-types";
+import { ConnectionState } from "@/lib/websocket/types";
+
+const initialMetrics = {
+  requests_completed: 0,
+  total_requests: 0,
+  average_response_time: 0,
+  min_response_time: 0,
+  max_response_time: 0,
+  error_rate: 0,
+  requests_per_second: 0,
+  status_codes: {},
+};
 
 export function useWebSocket(testType: TestType) {
   const [isConnected, setIsConnected] = useState(false);
   const [activities, setActivities] = useState<string[]>([]);
-  const [testState, setTestState] = useState<TestState>({ progress: 0, status: "idle" });
+  const [testState, setTestState] = useState<TestState>({
+    progress: 0,
+    status: "idle",
+    metrics: initialMetrics,
+  });
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesPoint[]>([]);
-  const [lastTimestamp, setLastTimestamp] = useState<number>(0);
+  const [chartData, setChartData] = useState<ChartData>({
+    timestamps: [],
+    throughput: [],
+    responseTime: [],
+    errorRate: [],
+  });
 
   // Monitor WebSocket connection state
   useEffect(() => {
     const unsubscribe = wsClient.subscribeToConnectionState((connectionState) => {
-      const connected = connectionState === "connected";
+      const connected = connectionState === ConnectionState.CONNECTED;
       setIsConnected(connected);
+
       if (connected) {
         setActivities((prev) => ["Connected to test server", ...prev].slice(0, 4));
-      } else if (connectionState === "disconnected" && testState.status === "running") {
+        // Request historical data when reconnected
+        wsClient.requestTimeSeriesHistory();
+      } else if (
+        connectionState === ConnectionState.DISCONNECTED &&
+        testState.status === "running"
+      ) {
         setTestState((prev) => ({
           ...prev,
           status: "interrupted",
         }));
-        setActivities((prev) => ["Connection to test server lost", ...prev].slice(0, 4));
-      } else if (connectionState === "disconnected") {
-        setActivities((prev) => ["Disconnected from test server", ...prev].slice(0, 4));
+        setActivities((prev) =>
+          ["Connection to test server lost, attempting to reconnect...", ...prev].slice(0, 4),
+        );
+        // Attempt to reconnect
+        wsClient.resetAndReconnect();
+      } else if (connectionState === ConnectionState.DISCONNECTED) {
+        setActivities((prev) =>
+          ["Disconnected from test server, attempting to reconnect...", ...prev].slice(0, 4),
+        );
+        wsClient.resetAndReconnect();
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [testState.status]);
+  }, [testState.status, testState.progress]);
 
   const connectWebSocket = useCallback(async () => {
     if (wsClient.isConnectedState()) return;
@@ -46,7 +80,7 @@ export function useWebSocket(testType: TestType) {
     }
   }, []);
 
-  // Setup WebSocket handlers
+  // Setup WebSocket handlers with better error handling
   useEffect(() => {
     // Subscribe to test updates
     const unsubscribeTestUpdates = wsClient.subscribeToTestUpdates((update) => {
@@ -54,8 +88,8 @@ export function useWebSocket(testType: TestType) {
 
       try {
         if (testState.status === "interrupted") {
-          console.warn("Ignoring test update because connection was previously lost");
-          return;
+          console.warn("Test was interrupted, but received update. Resuming...");
+          setTestState((prev) => ({ ...prev, status: "running" }));
         }
 
         const progress = typeof update.progress === "number" ? update.progress.toFixed(0) : "0";
@@ -102,31 +136,20 @@ export function useWebSocket(testType: TestType) {
         });
       } catch (error) {
         console.error("Error processing test update:", error, update);
-        setTestState((prev) => ({
-          ...prev,
-          status: "error",
-        }));
-        setActivities((prev) => ["Error processing test update", ...prev].slice(0, 4));
+        setActivities((prev) => [`Error processing test update: ${error}`, ...prev].slice(0, 4));
       }
     });
 
-    // Subscribe to time series data
+    // Subscribe to time series data with validation
     const unsubscribeTimeSeries = wsClient.subscribeToTimeSeries((point) => {
       try {
-        if (point && point.timestamp && point.timestamp > lastTimestamp) {
-          setLastTimestamp(point.timestamp);
+        if (point && isValidTimeSeriesPoint(point)) {
           setTimeSeriesData((prev) => {
-            if (
-              prev.length > 0 &&
-              prev[0].requestsPerSecond === 0 &&
-              prev[0].responseTime === 0 &&
-              prev[0].timestamp !== point.timestamp
-            ) {
-              const updatedData = [prev[0], ...prev.slice(1).concat(point)];
-              return updatedData.slice(-50);
-            } else {
-              return [...prev, point].slice(-50);
-            }
+            // Keep a sliding window of the last 50 points, sorted by timestamp
+            const newData = [...prev, point].sort((a, b) => a.timestamp - b.timestamp).slice(-50);
+            // Update chart data
+            setChartData(convertToChartData(newData));
+            return newData;
           });
         }
       } catch (error) {
@@ -134,56 +157,42 @@ export function useWebSocket(testType: TestType) {
       }
     });
 
-    // Subscribe to time series history
-    const unsubscribeTimeSeriesHistory = wsClient.subscribeToTimeSeriesHistory((points) => {
-      try {
-        if (Array.isArray(points) && points.length > 0) {
-          const latestTimestamp = Math.max(
-            ...points.filter((p) => p && typeof p.timestamp === "number").map((p) => p.timestamp),
-          );
-
-          if (testState.status === "idle" || testState.status === "starting") {
-            if (!isNaN(latestTimestamp)) {
-              setLastTimestamp(latestTimestamp);
-            }
-          } else if (testState.status === "running" && !isNaN(latestTimestamp)) {
-            setLastTimestamp(latestTimestamp);
-            if (points.length > 1) {
-              const currentData = [...timeSeriesData];
-              if (
-                currentData.length === 1 &&
-                currentData[0].requestsPerSecond === 0 &&
-                currentData[0].responseTime === 0
-              ) {
-                setTimeSeriesData([currentData[0], ...points.slice(-49)]);
-              } else {
-                setTimeSeriesData(points.slice(-50));
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error processing time series history:", error, points);
-      }
-    });
-
     return () => {
       unsubscribeTestUpdates();
       unsubscribeTimeSeries();
-      unsubscribeTimeSeriesHistory();
     };
-  }, [lastTimestamp, timeSeriesData, testState.status, testState.progress, testType]);
+  }, [testState.status, testState.progress, testType]);
+
+  useEffect(() => {
+    if (testState.progress === 100) {
+      const unsubscribe = wsClient.subscribeToTimeSeries(() => {});
+      unsubscribe();
+    }
+  }, [testState.progress]);
+
+  // Helper function to validate time series data
+  const isValidTimeSeriesPoint = (point: TimeSeriesPoint): boolean => {
+    return (
+      typeof point.timestamp === "number" &&
+      typeof point.requests_per_second === "number" &&
+      typeof point.average_response_time === "number" &&
+      typeof point.error_rate === "number" &&
+      point.timestamp > 0 &&
+      point.requests_per_second >= 0 &&
+      point.average_response_time >= 0 &&
+      point.error_rate >= 0
+    );
+  };
 
   return {
     isConnected,
     activities,
     testState,
     timeSeriesData,
-    lastTimestamp,
+    chartData,
     connectWebSocket,
     setTestState,
     setActivities,
     setTimeSeriesData,
-    setLastTimestamp,
   };
 }

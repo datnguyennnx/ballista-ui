@@ -6,10 +6,11 @@ export enum TestType {
 }
 
 export enum TestStatus {
-  Started = "Started",
-  Running = "Running",
-  Completed = "Completed",
-  Error = "Error",
+  Pending = "pending",
+  Started = "started",
+  Running = "running",
+  Completed = "completed",
+  Error = "error",
 }
 
 // Test Configurations
@@ -34,13 +35,12 @@ export interface ApiTestConfig {
 export interface TestMetrics {
   requests_completed: number;
   total_requests: number;
-  avg_response_time: number;
-  min_response_time?: number;
-  max_response_time?: number;
-  median_response_time?: number;
-  p95_response_time?: number;
-  status_codes: Record<number, number>;
-  errors: number;
+  average_response_time: number;
+  min_response_time: number;
+  max_response_time: number;
+  error_rate: number;
+  requests_per_second: number;
+  status_codes: Record<number, number>; // Maps status code to count
 }
 
 export interface TestResult {
@@ -60,6 +60,12 @@ export interface TestUpdate {
   metrics?: TestMetrics;
   error?: string;
   timestamp: number;
+}
+
+export interface TestState {
+  progress: number;
+  metrics?: TestMetrics;
+  status: TestStatus;
 }
 
 // API Response Types

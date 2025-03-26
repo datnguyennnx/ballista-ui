@@ -1,4 +1,4 @@
-import { Activity, Home, Gauge, ServerCrash } from "lucide-react";
+import { Activity, Home, Gauge } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -27,12 +27,6 @@ const items = [
     title: "Stress Test",
     url: "/testing/stress",
     icon: Activity,
-  },
-
-  {
-    title: "API Test",
-    url: "/testing/api",
-    icon: ServerCrash,
   },
 ];
 

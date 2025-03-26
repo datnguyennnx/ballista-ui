@@ -1,5 +1,4 @@
-import { TimeSeriesPoint } from "../types/time-series";
-import { TimeSeriesData } from "../components/metrics-dashboard";
+import { TimeSeriesPoint, TimeSeriesData } from "../types/time-series";
 
 /**
  * Convert TimeSeriesPoint array to the TimeSeriesData format needed by MetricsDashboard
@@ -7,31 +6,17 @@ import { TimeSeriesData } from "../components/metrics-dashboard";
 export const mapTimeSeriesData = (data: TimeSeriesPoint[]): TimeSeriesData => {
   if (!data || data.length === 0) {
     return {
+      timestamps: [],
       responseTime: [],
       throughput: [],
-      concurrentUsers: [],
       errorRate: [],
     };
   }
 
   return {
-    responseTime: data.map((point) => ({
-      timestamp: point.timestamp,
-      value: point.responseTime,
-    })),
-    throughput: data.map((point) => ({
-      timestamp: point.timestamp,
-      value: point.requestsPerSecond,
-    })),
-    // Since TimeSeriesPoint doesn't have concurrentUsers,
-    // we calculate a simulated value based on throughput
-    concurrentUsers: data.map((point) => ({
-      timestamp: point.timestamp,
-      value: Math.floor(point.requestsPerSecond * (Math.random() * 2 + 3)), // simulate users based on throughput
-    })),
-    errorRate: data.map((point) => ({
-      timestamp: point.timestamp,
-      value: point.errorRate,
-    })),
+    timestamps: data.map((point) => point.timestamp),
+    responseTime: data.map((point) => point.average_response_time),
+    throughput: data.map((point) => point.requests_per_second),
+    errorRate: data.map((point) => point.error_rate),
   };
 };

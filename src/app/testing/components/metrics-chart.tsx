@@ -9,12 +9,13 @@ import {
   ReferenceLine,
   ReferenceArea,
   ReferenceDot,
+  Tooltip,
 } from "recharts";
 import { format } from "date-fns";
 import { TimeSeriesPoint } from "../types/time-series";
 import { Card } from "@/components/ui/card";
 import { AlertCircleIcon, CheckCircleIcon, WifiIcon, WifiOffIcon, ClockIcon } from "lucide-react";
-import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 
@@ -46,7 +47,7 @@ export function MetricsChart({
   data,
   dataKey,
   label,
-  colorIndex = 1, // Default to first chart color
+  colorIndex = 1,
   formatValue = (value) => `${value}`,
   refreshInterval = 1000,
   showMiniStats = true,
@@ -57,81 +58,29 @@ export function MetricsChart({
   const [chartData, setChartData] = useState<TimeSeriesPoint[]>([]);
   const [isHovering, setIsHovering] = useState(false);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isInitialMount = useRef(true);
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
   const [latestValue, setLatestValue] = useState<number | null>(null);
   const [min, setMin] = useState<number>(0);
   const [max, setMax] = useState<number>(0);
   const [avg, setAvg] = useState<number>(0);
 
-  // Use CSS variables for chart colors, falling back to --chart-1 if not specified
+  // Use CSS variables for chart colors
   const color = `var(--chart-${colorIndex})`;
 
-  // Keep track of first data update
-  const isFirstDataRef = useRef(true);
-
-  // Safely calculate current value
-  const safeCurrentValue = useMemo(() => {
-    if (chartData.length === 0) return 0;
-    return Number(chartData[chartData.length - 1][dataKey]) || 0;
-  }, [chartData, dataKey]);
-
-  // Update chart data
+  // Update chart data when props data changes
   useEffect(() => {
-    if (data.length === 0) return;
-
-    // On initial update, just set the data
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
+    if (data && data.length > 0) {
       setChartData(data);
 
-      // Update min, max, avg statistics if we have data
-      if (data.length > 0) {
-        const values = data.map((d) => Number(d[dataKey]) || 0);
-        const newMin = Math.min(...values);
-        const newMax = Math.max(...values);
-        const newAvg = values.reduce((sum, val) => sum + val, 0) / values.length;
-
-        setMin(newMin);
-        setMax(newMax);
-        setAvg(newAvg);
-
-        // Update latest value
-        const latest = data[data.length - 1][dataKey] as number;
-        setLatestValue(latest);
-      }
-
-      return;
+      // Update statistics
+      const values = data.map((d) => Number(d[dataKey] || 0));
+      setMin(Math.min(...values));
+      setMax(Math.max(...values));
+      setAvg(values.reduce((a, b) => a + b, 0) / values.length);
+      setLatestValue(values[values.length - 1]);
+      setLastUpdateTime(Date.now());
     }
-
-    // Sort data by timestamp
-    const sortedData = [...data].sort(
-      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-    );
-
-    setChartData(sortedData);
-
-    // Update min, max, avg statistics if we have data
-    if (sortedData.length > 0) {
-      const values = sortedData.map((d) => Number(d[dataKey]) || 0);
-      const newMin = Math.min(...values);
-      const newMax = Math.max(...values);
-      const newAvg = values.reduce((sum, val) => sum + val, 0) / values.length;
-
-      // Smooth transitions for statistics
-      setMin((prev) => (isFirstDataRef.current ? newMin : prev * 0.7 + newMin * 0.3));
-      setMax((prev) => (isFirstDataRef.current ? newMax : prev * 0.7 + newMax * 0.3));
-      setAvg((prev) => (isFirstDataRef.current ? newAvg : prev * 0.7 + newAvg * 0.3));
-
-      // Update latest value with smooth transition
-      const latest = sortedData[sortedData.length - 1][dataKey] as number;
-      setLatestValue(latest);
-
-      isFirstDataRef.current = false;
-    }
-
-    setLastUpdateTime(Date.now());
-  }, [data, dataKey, safeCurrentValue]);
+  }, [data, dataKey]);
 
   // Handle refresh interval
   useEffect(() => {
@@ -178,9 +127,9 @@ export function MetricsChart({
       : [
           {
             timestamp: Date.now(),
-            responseTime: 0,
-            requestsPerSecond: 0,
-            errorRate: 0,
+            requests_per_second: 0,
+            average_response_time: 0,
+            error_rate: 0,
           },
         ];
   }, [chartData]);
@@ -413,14 +362,14 @@ export function MetricsChart({
             />
           )}
 
-          <ChartTooltip cursor={false} content={<CustomTooltip />} />
+          <Tooltip cursor={false} content={<CustomTooltip />} />
 
           <Area
             type="monotone"
             dataKey={dataKey as string}
-            fill="var(--color-desktop)"
+            fill={color}
             fillOpacity={0.3}
-            stroke="var(--color-desktop)"
+            stroke={color}
             animationDuration={0}
             isAnimationActive={false}
             connectNulls={true}
@@ -452,8 +401,8 @@ export function MetricsChart({
               <span className="font-medium">{formatValue(max)}</span>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              {getConnectivityIndicator()}
               {getStatusIndicator()}
+              {getConnectivityIndicator()}
             </div>
           </div>
         )}
@@ -461,30 +410,16 @@ export function MetricsChart({
         {renderChart()}
       </div>
 
-      <Dialog open={isFullscreen} onOpenChange={handleFullscreenToggle}>
-        <DialogContent className="h-fit max-w-[90vw] min-w-fit scale-x-200 scale-y-200">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl font-semibold">{label}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col">
-            <div className="mb-4 flex gap-4 text-sm">
-              <div>
-                <span className="text-neutral-500">Min: </span>
-                <span className="font-medium">{formatValue(min)}</span>
-              </div>
-              <div>
-                <span className="text-neutral-500">Avg: </span>
-                <span className="font-medium">{formatValue(avg)}</span>
-              </div>
-              <div>
-                <span className="text-neutral-500">Max: </span>
-                <span className="font-medium">{formatValue(max)}</span>
-              </div>
-            </div>
-            <div className="min-h-fit flex-1">{renderChart()}</div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {isFullscreen && (
+        <Dialog open={isFullscreen} onOpenChange={handleFullscreenToggle}>
+          <DialogContent className="max-w-[90vw]">
+            <DialogHeader>
+              <DialogTitle>{label}</DialogTitle>
+            </DialogHeader>
+            <div className="h-[70vh]">{renderChart()}</div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

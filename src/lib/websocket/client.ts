@@ -1,31 +1,13 @@
-import { TestUpdate } from "@/types/index";
-import { TimeSeriesPoint } from "@/app/testing/types/time-series";
-
-// Define the different types of WebSocket messages
-export type WebSocketMessage =
-  | { type: "test_update"; data: TestUpdate }
-  | { type: "time_series"; data: TimeSeriesPoint }
-  | { type: "time_series_history"; data: TimeSeriesPoint[] };
-
-// Connection states with more granularity
-export enum ConnectionState {
-  DISCONNECTED = "disconnected",
-  CONNECTING = "connecting",
-  CONNECTED = "connected",
-  UNSTABLE = "unstable",
-}
-
-// Handler type for each message type
-type TestUpdateHandler = (update: TestUpdate) => void;
-type TimeSeriesHandler = (point: TimeSeriesPoint) => void;
-type TimeSeriesHistoryHandler = (points: TimeSeriesPoint[]) => void;
-export type ConnectionStateHandler = (state: ConnectionState, reconnectAttempts?: number) => void;
-
-// Subscription type for new message handling system
-interface Subscription {
-  messageType: string;
-  callback: (message: WebSocketMessage) => void;
-}
+import {
+  ConnectionState,
+  TestUpdateHandler,
+  TimeSeriesHandler,
+  TimeSeriesHistoryHandler,
+  ConnectionStateHandler,
+  Subscription,
+  WebSocketMessage,
+  MetricsUpdateHandler,
+} from "./types";
 
 export class WebSocketClient {
   private ws: WebSocket | null = null;
@@ -40,8 +22,10 @@ export class WebSocketClient {
   private reconnectDelay = 1000;
   // Add heartbeat timer for connection health checks
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  private lastHeartbeatResponse: number = 0;
+  private lastHeartbeatResponse: number = Date.now();
   private heartbeatMissed = 0;
+  private heartbeatTimeout = 30000; // 30 seconds timeout
+  private heartbeatIntervalTime = 15000; // 15 seconds interval
 
   // For new subscription model
   private subscribers: Subscription[] = [];
@@ -51,12 +35,14 @@ export class WebSocketClient {
   private testUpdateHandlers: Set<TestUpdateHandler> = new Set();
   private timeSeriesHandlers: Set<TimeSeriesHandler> = new Set();
   private timeSeriesHistoryHandlers: Set<TimeSeriesHistoryHandler> = new Set();
+  private metricsUpdateHandlers: Set<MetricsUpdateHandler> = new Set();
   // Message queue for storing messages during disconnection
-  private messageQueue: unknown[] = [];
+  private messageQueue: WebSocketMessage[] = [];
   private maxQueueSize = 50;
 
+  constructor(private url: string) {}
+
   connect(): Promise<void> {
-    // Don't create a new connection if already connected or connecting
     if (
       this.connectionState === ConnectionState.CONNECTED ||
       this.connectionState === ConnectionState.CONNECTING
@@ -65,18 +51,16 @@ export class WebSocketClient {
         return Promise.resolve();
       }
 
-      // Wait for the connection to complete
       return new Promise((resolve, reject) => {
         const checkConnection = () => {
           if (this.connectionState === ConnectionState.CONNECTED) {
             resolve();
           } else if (this.connectionState === ConnectionState.DISCONNECTED) {
-            reject(new Error("Connection failed"));
+            reject();
           } else {
             setTimeout(checkConnection, 100);
           }
         };
-
         setTimeout(checkConnection, 100);
       });
     }
@@ -86,109 +70,98 @@ export class WebSocketClient {
     return new Promise((resolve, reject) => {
       try {
         const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001/ws";
-        console.log(`Connecting to WebSocket at ${wsUrl}`);
         this.ws = new WebSocket(wsUrl);
 
         // Set a connection timeout
         const connectionTimeout = setTimeout(() => {
           if (this.connectionState !== ConnectionState.CONNECTED) {
-            console.error("WebSocket connection timeout after 8000ms");
             this.ws?.close();
             this.setConnectionState(ConnectionState.DISCONNECTED);
-            reject(new Error("Connection timeout"));
+            reject();
           }
-        }, 8000); // 8 seconds timeout
+        }, 5000);
 
         this.ws.onopen = () => {
-          console.log("WebSocket connection opened");
           clearTimeout(connectionTimeout);
           this.handleConnectionOpen();
           resolve();
         };
 
-        this.ws.onclose = (event) => {
-          console.log(`WebSocket closed with code ${event.code}, clean: ${event.wasClean}`);
+        this.ws.onclose = () => {
           clearTimeout(connectionTimeout);
           this.stopHeartbeat();
 
-          // Check if browser is about to unload (navigation or refresh)
           if (this.connectionState === ConnectionState.DISCONNECTED) {
-            console.log("WebSocket closed due to intentional disconnect");
-          } else if (event.code === 1001) {
-            console.log("WebSocket closed due to page navigation/refresh");
-            // This could be page navigation, minimize reconnect attempts
-            this.reconnectDelay = 1000;
-          } else if (!event.wasClean) {
-            this.handleDisconnect();
+            return;
           }
+          this.handleDisconnect();
         };
 
-        this.ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
+        this.ws.onerror = () => {
           clearTimeout(connectionTimeout);
           this.stopHeartbeat();
 
-          // Only report error if we're trying to connect
           if (this.connectionState === ConnectionState.CONNECTING) {
             this.setConnectionState(ConnectionState.DISCONNECTED);
-            reject(error);
+            reject();
           } else {
-            // If we're connected and encounter an error, gracefully switch to disconnected state
             this.handleDisconnect();
           }
         };
 
-        this.ws.onmessage = (event) => {
-          if (typeof event.data === "string") {
-            try {
-              // Handle heartbeat responses
-              if (event.data === "pong") {
-                this.lastHeartbeatResponse = Date.now();
-                this.heartbeatMissed = 0;
-                return;
-              }
-
-              if (event.data === "ping") {
-                // Respond to server ping with pong
-                this.sendRaw("pong");
-                return;
-              }
-
-              // Parse the message
-              const message = JSON.parse(event.data);
-              console.debug("WS received message:", message.type);
-
-              // Route message to appropriate handlers based on type
-              switch (message.type) {
-                case "test_update":
-                  this.testUpdateHandlers.forEach((handler) => handler(message.data));
-                  break;
-                case "time_series":
-                  this.timeSeriesHandlers.forEach((handler) => handler(message.data));
-                  break;
-                case "time_series_history":
-                  this.timeSeriesHistoryHandlers.forEach((handler) => handler(message.data));
-                  break;
-                default:
-                  // Process message with new subscription model
-                  this.subscribers.forEach((subscriber) => {
-                    if (subscriber.messageType === message.type) {
-                      subscriber.callback(message);
-                    }
-                  });
-              }
-            } catch (err) {
-              console.error("Error processing WebSocket message:", err, event.data);
-            }
-          }
-        };
-      } catch (error) {
-        console.error("Error creating WebSocket:", error);
+        this.ws.onmessage = this.handleMessage.bind(this);
+      } catch {
         this.setConnectionState(ConnectionState.DISCONNECTED);
-        reject(error);
+        reject();
       }
     });
   }
+
+  private handleMessage = (event: MessageEvent) => {
+    if (typeof event.data === "string") {
+      // Handle heartbeat messages
+      if (event.data === "pong") {
+        this.lastHeartbeatResponse = Date.now();
+        this.heartbeatMissed = 0;
+        return;
+      }
+
+      if (event.data === "ping") {
+        this.sendRaw("pong");
+        return;
+      }
+
+      try {
+        const message: WebSocketMessage = JSON.parse(event.data);
+        console.debug("WS received message:", message.type);
+
+        switch (message.type) {
+          case "test_update":
+            this.testUpdateHandlers.forEach((handler) => handler(message.data));
+            break;
+          case "time_series":
+            this.timeSeriesHandlers.forEach((handler) => handler(message.data));
+            break;
+          case "time_series_history":
+            this.timeSeriesHistoryHandlers.forEach((handler) => handler(message.data));
+            break;
+          case "metrics_update":
+            this.metricsUpdateHandlers.forEach((handler) => handler(message.data));
+            break;
+          default:
+            this.subscribers.forEach((subscriber) => {
+              const wsMessage = message as { type: string };
+              if (subscriber.messageType === wsMessage.type && subscriber.callback) {
+                subscriber.callback(message);
+              }
+            });
+        }
+      } catch {
+        // Silently ignore message parsing errors
+        return;
+      }
+    }
+  };
 
   // Send raw string message
   private sendRaw(message: string): boolean {
@@ -199,8 +172,8 @@ export class WebSocketClient {
     try {
       this.ws.send(message);
       return true;
-    } catch (err) {
-      console.error("Error sending raw message:", err);
+    } catch {
+      // Silently handle send errors
       return false;
     }
   }
@@ -222,10 +195,8 @@ export class WebSocketClient {
       if (elapsed > 30000) {
         // 30 seconds without response
         this.heartbeatMissed++;
-        console.warn(`Heartbeat missed ${this.heartbeatMissed} times`);
 
         if (this.heartbeatMissed >= 2) {
-          console.error("WebSocket connection appears to be dead, reconnecting");
           this.reconnect();
           return;
         }
@@ -303,7 +274,7 @@ export class WebSocketClient {
   // Queue a message for sending when connection is restored
   queueMessage(message: unknown): boolean {
     // Add to queue if not connected
-    this.messageQueue.push(message);
+    this.messageQueue.push(message as WebSocketMessage);
 
     // Limit queue size to prevent memory issues
     if (this.messageQueue.length > this.maxQueueSize) {
@@ -598,6 +569,12 @@ export class WebSocketClient {
   getMaxReconnectAttempts(): number {
     return this.maxReconnectAttempts;
   }
-}
 
-export const wsClient = new WebSocketClient();
+  // Add new subscription methods
+  onMetricsUpdate(handler: MetricsUpdateHandler): Subscription {
+    this.metricsUpdateHandlers.add(handler);
+    return {
+      unsubscribe: () => this.metricsUpdateHandlers.delete(handler),
+    };
+  }
+}

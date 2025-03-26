@@ -1,22 +1,23 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ReactNode } from "react";
 
-export interface MetricCardProps {
+interface MetricCardProps {
   title: string;
-  value: React.ReactNode;
-  description?: string;
+  value: string | number | ReactNode;
   statusColor?: string;
+  description?: string | ReactNode;
   isRunning?: boolean;
   footer?: React.ReactNode;
-  additionalContent?: React.ReactNode;
+  additionalContent?: ReactNode;
 }
 
 export function MetricCard({
   title,
   value,
-  description,
   statusColor,
+  description,
   isRunning = false,
   footer,
   additionalContent,
