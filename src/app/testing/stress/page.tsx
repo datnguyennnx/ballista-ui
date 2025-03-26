@@ -38,7 +38,6 @@ export default function StressTestPage() {
             loadConfig={stressConfig}
             setLoadConfig={setStressConfig}
             startTest={startTest}
-            runFakeTest={runFakeTest}
             loadTest={stressTest}
             isFakeTestRunning={isFakeTestRunning}
             testType="stress"
@@ -61,7 +60,6 @@ export default function StressTestPage() {
               loadConfig={stressConfig}
               setLoadConfig={setStressConfig}
               startTest={startTest}
-              runFakeTest={runFakeTest}
               loadTest={stressTest}
               isFakeTestRunning={isFakeTestRunning}
               testType="stress"

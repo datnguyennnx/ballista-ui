@@ -29,7 +29,6 @@ interface TestConfigProps {
   loadConfig: LoadConfigType;
   setLoadConfig: (config: LoadConfigType) => void;
   startTest: () => void;
-  runFakeTest: () => void;
   loadTest: TestState;
   isFakeTestRunning: boolean;
   testType?: "load" | "stress" | "api";
@@ -38,7 +37,6 @@ export function TestConfig({
   loadConfig,
   setLoadConfig,
   startTest,
-  runFakeTest,
   loadTest,
   isFakeTestRunning,
   testType = "load",
@@ -335,10 +333,6 @@ export function TestConfig({
             ) : (
               <span>Start Real Test (WebSocket)</span>
             )}
-          </Button>
-
-          <Button onClick={runFakeTest} disabled={isRunning} className="w-full" variant="outline">
-            Run Simulated Test (Offline)
           </Button>
         </div>
       </CardContent>

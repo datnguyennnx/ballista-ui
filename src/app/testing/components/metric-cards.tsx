@@ -175,14 +175,8 @@ export function MetricCards({ metrics, isRunning }: MetricCardsProps) {
                     ) : (
                       <CheckCircleIcon className="text-chart-1 h-3 w-3" />
                     )}
-                    <span>
-                      {errors > 0 ? (
-                        <>
-                          <NumberTicker value={errors} /> Errors
-                        </>
-                      ) : (
-                        "No Errors"
-                      )}
+                    <span className="text-xs font-bold">
+                      {errors > 0 ? <span>{errors} Errors</span> : "No Errors"}
                     </span>
                   </Badge>
                   <span className="text-muted-foreground text-xs">

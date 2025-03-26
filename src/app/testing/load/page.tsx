@@ -42,7 +42,6 @@ export default function LoadTestPage() {
             loadConfig={loadConfig}
             setLoadConfig={setLoadConfig}
             startTest={startTest}
-            runFakeTest={runFakeTest}
             loadTest={loadTest}
             isFakeTestRunning={isFakeTestRunning}
             testType="load"
@@ -69,7 +68,6 @@ export default function LoadTestPage() {
               loadConfig={loadConfig}
               setLoadConfig={setLoadConfig}
               startTest={startTest}
-              runFakeTest={runFakeTest}
               loadTest={loadTest}
               isFakeTestRunning={isFakeTestRunning}
               testType="load"
