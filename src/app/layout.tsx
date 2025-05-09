@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
 const spaceMono = Space_Mono({
@@ -40,8 +38,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head />
       <body className={`${spaceMono.variable} antialiased`}>
-        <SpeedInsights />
-        <Analytics />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
